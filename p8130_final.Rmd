@@ -1,0 +1,263 @@
+---
+title: "p8130_final"
+author: "Yiran Xu"
+date: "2024-12-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 目前遇到的问题：
+建模用的是AFT model, assume "weibull" distribution. 但是输出结果后发现survival months不属于"weibull" distribution (根据残差是否是normal的方法),同样也拒绝了log- normal distribution.
+
+由于找不到假设的分布，使用非参数方法COX model后cross validation的结果很差，mean_cindex只有0.2+，所以目前先保留了AFT的方法，还在看怎么解决不符合分布的问题。。。
+
+# 剩下的任务：
+* 怎么解决不符合分布的问题
+* 还没有完成不同种族间的比较
+* 排版还没有做的很好看
+* 输出都在代码上，还没有针对性回答问题的文字
+* report
+* 有model的问题dd我
+
+```{r}
+library(readr)
+library(dplyr)
+library(survival)
+library(caret)
+library(ggplot2)
+library(kableExtra)
+library(minerva)
+library(stats)
+library(fitdistrplus)
+library(randomForestSRC)
+library(tidyverse)
+library(goftest)
+library(survival)
+```
+
+
+
+
+```{r}
+data_clean = read_csv("data/Project_2_data.csv") |>
+  rename(
+    Stage_6th = `6th Stage`) |>
+  janitor::clean_names() |>
+mutate(status = as.numeric(status == "Dead"), # 0 = alive, 1 = dead
+       race = as.factor(race),
+       marital_status = as.factor(marital_status),
+       t_stage = as.factor(t_stage),
+       n_stage = as.factor(n_stage),
+       stage_6th = as.factor(stage_6th),
+       differentiate = as.factor(differentiate),
+       grade = as.factor(grade),
+       a_stage = as.factor(a_stage),
+       estrogen_status = as.factor(estrogen_status),
+       progesterone_status = as.factor(progesterone_status),
+       survival_months = log(survival_months) + 1
+  )
+
+summary(data_clean)
+
+head(data_clean) |>
+  kable() |>
+  kable_styling(full_width = FALSE) %>%
+  scroll_box(width = "100%", height = "300px")
+```
+# exploratory description
+```{r}
+summary_stats <- data_clean |> summary()
+print(summary_stats)
+
+# 可视化生存时间分布
+ggplot(data_clean, aes(x = survival_months, fill = status)) +
+  geom_histogram() +
+  labs(title = "Survival Time Distribution", x = "Months", y = "Count") +
+  theme_minimal()
+
+# 类别变量分布
+data_clean |>
+  dplyr::select(race, marital_status, t_stage, n_stage) |>
+  mutate(across(everything(), as.character)) |>
+  pivot_longer(cols = everything(), names_to = "Variable", values_to = "Category") |>
+  ggplot(aes(x = Category, fill = Variable)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Categorical Variable Distribution") +
+  theme_minimal()
+
+## optional: 数值变量分布： 可以绘制直方图或箱线图检查是否有极端值?
+```
+
+# Apply AFT methos
+
+## Check survival rate distribution.
+```{r}
+# Weibull 分布拟合
+fit_weibull <- fitdist(data_clean$survival_months, "weibull")
+
+ad_test <- ad.test(data_clean$survival_months, "pweibull", 
+                   shape = fit_weibull$estimate["shape"], 
+                   scale = fit_weibull$estimate["scale"])
+print("Anderson-Darling Test:")
+print(ad_test)
+
+fit_lognormal <- fitdist(data_clean$survival_months, "lnorm")
+plot(fit_lognormal)
+
+
+# 绘制拟合效果
+plot(fit_weibull)
+```
+
+The figure above shows that the 
+
+
+## Stepwise: initial filtering of variables
+
+survival rate distribution is closed to Weibull distribution --> adopt it as the hypothetical distribution.
+
+stepwise, filter out redundant variables.
+```{r}
+full_model <- survreg(Surv(survival_months, status) ~ ., data = data_clean, dist = "weibull")
+
+
+stepwise_model <- step(full_model, 
+                       direction = "both",     
+                       trace = TRUE)   
+
+selected_formula <- formula(stepwise_model)
+selected_variables <- all.vars(selected_formula)[-1][-1]
+print(selected_variables)
+```
+
+`6th stage`,`Differentiation`,`A stage`,`Tumor Size` are excluded, as are explained by T Stage alone?
+
+
+```{r}
+selected_vars <- all.vars(selected_formula)[-1][-1]
+selected_vars = data_clean[, selected_vars, drop = FALSE]
+
+perform_chi_square_all <- function(data) {
+  # 初始化结果存储
+  results <- data.frame(
+    Variable1 = character(),
+    Variable2 = character(),
+    Chi_Square_Statistic = numeric(),
+    P_Value = numeric(),
+    stringsAsFactors = FALSE
+  )
+  
+  # 遍历所有变量组合
+  var_names <- names(data)
+  for (i in 1:(length(var_names) - 1)) {
+    for (j in (i + 1):length(var_names)) {
+      var1 <- var_names[i]
+      var2 <- var_names[j]
+      
+      # 卡方检验
+      contingency_table <- table(data[[var1]], data[[var2]])
+      chi_test <- chisq.test(contingency_table)
+      
+      # 存储结果
+      results <- rbind(results, data.frame(
+        Variable1 = var1,
+        Variable2 = var2,
+        Chi_Square_Statistic = chi_test$statistic,
+        P_Value = chi_test$p.value
+      ))
+    }
+  }
+  significant_results <- subset(results, P_Value < 0.05)
+  return(significant_results)
+}
+
+# 假设 data_clean 全是因子类型数据
+# 应用到你的数据集
+chi_square_results <- perform_chi_square_all(selected_vars) |>
+  arrange(P_Value)
+
+# 打印结果
+print(chi_square_results)
+```
+
+# Select the top ten interaction from ANOVA result and added them to the model
+
+# Only selcted `age`, `race` and `marital_status` as main effect. unlike other corelated pathological factor, these factors are either less likely to correlated with each other or correlated with pathological factors.
+```{r}
+top_interactions <- head(chi_square_results, 10)
+print("Top 10 Interactions:")
+print(top_interactions)
+
+# 构建交互项公式
+interaction_terms <- paste0(top_interactions$Variable1, " * ", top_interactions$Variable2)
+interaction_formula <- paste(interaction_terms, collapse = " + ")
+main_terms = paste(c("age", "race"), collapse = " + ")
+
+# 构建最终 AFT 模型公式
+aft_formula <- as.formula(paste("Surv(survival_months, status) ~ ", paste(c(interaction_formula, main_terms), collapse = "+")))
+print("Final AFT Formula:")
+print(aft_formula)
+
+
+```
+
+# Evaluate the model with 5-fold cross validation
+# 5-fold cross validation
+```{r}
+cross_validate_aft_with_residuals <- function(data, formula, dist = "weibull", k = 5) {
+  cindex_results <- c()
+  residuals_list <- list()
+  set.seed(123)  # 确保结果可复现
+  folds <- cut(seq(1, nrow(data)), breaks = k, labels = FALSE)
+  
+  for (i in 1:k) {
+    # 划分训练集和测试集
+    test_idx <- which(folds == i, arr.ind = TRUE)
+    train_data <- data[-test_idx, ]
+    test_data <- data[test_idx, ]
+    
+    # 拟合 AFT 模型
+    aft_model <- survreg(formula, data = train_data, dist = dist)
+    
+    # 预测测试集生存时间
+    predictions <- predict(aft_model, newdata = test_data, type = "response")
+    
+    # 计算 C-index
+    concordance_result <- concordance(Surv(test_data$survival_months, test_data$status) ~ predictions)
+    cindex_results <- c(cindex_results, concordance_result$concordance)
+    
+    # 计算残差
+    train_residuals <- residuals(aft_model, type = "response")
+    residuals_list[[i]] <- train_residuals
+    
+    
+    # 绘制残差分布图（仅示例第一个 fold）
+    if (i == 1) {
+      print("Residuals Distribution for Fold 1:")
+      hist(train_residuals, main = "Residuals Distribution", xlab = "Residuals")
+      qqnorm(train_residuals, main = "QQ Plot of Residuals")
+      qqline(train_residuals, col = "red")
+    }
+  }
+  
+  # 返回交叉验证结果和残差信息
+  return(list(
+    mean_cindex = mean(cindex_results),
+    sd_cindex = sd(cindex_results),
+    residuals = residuals_list
+  ))
+}
+
+# 执行交叉验证并检查残差
+cv_results_with_residuals <- cross_validate_aft_with_residuals(data_clean, aft_formula, dist = "weibull", k = 5)
+
+
+# 输出交叉验证结果
+print("5-Fold Cross-Validation Results with Residual Analysis:")
+print(cv_results_with_residuals$mean_cindex)
+print(cv_results_with_residuals$sd_cindex)
+```
+
