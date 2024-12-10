@@ -15,7 +15,7 @@ knitr::opts_chunk$set(echo = TRUE)
 由于找不到假设的分布，使用非参数方法COX model后cross validation的结果很差，mean_cindex只有0.2+，所以目前先保留了AFT的方法，还在看怎么解决不符合分布的问题。。。
 
 # 剩下的任务：
-* 怎么解决不符合分布的问题
+* 怎么解决不符合分布的问题 (已解决,未修改：according to lec 12: In large samples, the test is very sensitive to departures from normality, we could still assume a distribution given the residual is not normal, use qq plot is enough) 
 * 还没有完成不同种族间的比较
 * 排版还没有做的很好看
 * 输出都在代码上，还没有针对性回答问题的文字
@@ -112,7 +112,7 @@ plot(fit_lognormal)
 plot(fit_weibull)
 ```
 
-The figure above shows that the 
+The figure above shows that the distribution is either not Weibull or log-normal test, this is because the survival months data is truncated. If the residual is normal distribution, then we can say the theoriotical survival months obey certain distribution.
 
 
 ## Stepwise: initial filtering of variables
@@ -260,4 +260,6 @@ print("5-Fold Cross-Validation Results with Residual Analysis:")
 print(cv_results_with_residuals$mean_cindex)
 print(cv_results_with_residuals$sd_cindex)
 ```
+
+# Reference
 
