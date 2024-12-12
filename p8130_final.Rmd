@@ -20,6 +20,8 @@ knitr::opts_chunk$set(echo = TRUE)
 * 排版还没有做的很好看
 * 输出都在代码上，还没有针对性回答问题的文字
 * report
+* model explanation
+* R包redundant
 * 有model的问题dd我
 
 ```{r}
@@ -36,6 +38,7 @@ library(randomForestSRC)
 library(tidyverse)
 library(goftest)
 library(survival)
+library(stats)
 ```
 
 
@@ -201,7 +204,7 @@ aft_formula <- as.formula(paste("Surv(survival_months, status) ~ ", paste(c(inte
 print("Final AFT Formula:")
 print(aft_formula)
 
-
+anova(aft_formula)
 ```
 
 # Evaluate the model with 5-fold cross validation
