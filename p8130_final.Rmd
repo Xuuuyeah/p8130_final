@@ -20,6 +20,7 @@ knitr::opts_chunk$set(echo = TRUE)
 * R包redundant
 * If the interaction term is NOT significant, remove it and re-fit the model only with the main effects
 * 还没看&筛outlier
+* model里只有三个main effect, 应该把其他的main effect都加上？（之前因为有interaction所以没加上）
 * 还没有完成不同种族间的比较
 * 排版还没有做的很好看
 * 输出都在代码上，还没有针对性回答问题的文字
