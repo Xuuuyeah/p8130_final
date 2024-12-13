@@ -16,12 +16,15 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # 剩下的任务：
 * 怎么解决不符合分布的问题 (已解决,未修改：according to lec 12: In large samples, the test is very sensitive to departures from normality, we could still assume a distribution given the residual is not normal, use qq plot is enough) 
+* model explanation
+* R包redundant
+* If the interaction term is NOT significant, remove it and re-fit the model only with the main effects
+* 还没看&筛outlier
 * 还没有完成不同种族间的比较
 * 排版还没有做的很好看
 * 输出都在代码上，还没有针对性回答问题的文字
 * report
-* model explanation
-* R包redundant
+
 * 有model的问题dd我
 
 ```{r}
@@ -203,8 +206,6 @@ main_terms = paste(c("age", "race"), collapse = " + ")
 aft_formula <- as.formula(paste("Surv(survival_months, status) ~ ", paste(c(interaction_formula, main_terms), collapse = "+")))
 print("Final AFT Formula:")
 print(aft_formula)
-
-anova(aft_formula)
 ```
 
 # Evaluate the model with 5-fold cross validation
