@@ -18,6 +18,7 @@ knitr::opts_chunk$set(echo = TRUE)
 * 怎么解决不符合分布的问题 (已解决,未修改：according to lec 12: In large samples, the test is very sensitive to departures from normality, we could still assume a distribution given the residual is not normal, use qq plot is enough) 
 * model explanation
 * R包redundant
+* transformation, reginol_node_positive还没找到合适的transformation，survival month不需要transform，因为假设的不是normal
 * If the interaction term is NOT significant, remove it and re-fit the model only with the main effects
 * 还没看&筛outlier
 * model里只有三个main effect, 应该把其他的main effect都加上？（之前因为有interaction所以没加上）
@@ -47,15 +48,12 @@ library(survival)
 library(stats)
 ```
 
-
-
-
 ```{r}
 data_clean = read_csv("data/Project_2_data.csv") |>
   rename(
     Stage_6th = `6th Stage`) |>
   janitor::clean_names() |>
-mutate(status = as.numeric(status == "Dead"), # 0 = alive, 1 = dead
+mutate(status = as.numeric(status == "Dead"),
        race = as.factor(race),
        marital_status = as.factor(marital_status),
        t_stage = as.factor(t_stage),
@@ -81,8 +79,7 @@ head(data_clean) |>
 summary_stats <- data_clean |> summary()
 print(summary_stats)
 
-# 可视化生存时间分布
-ggplot(data_clean, aes(x = survival_months, fill = status)) +
+data_clean |> ggplot(aes(x = survival_months, fill = status)) +
   geom_histogram() +
   labs(title = "Survival Time Distribution", x = "Months", y = "Count") +
   theme_minimal()
@@ -96,9 +93,32 @@ data_clean |>
   geom_bar(position = "dodge") +
   labs(title = "Categorical Variable Distribution") +
   theme_minimal()
+```
+
+
+# Transformation
+```{r}
+data_transformed <- data_clean %>%
+  mutate(
+    # 对右偏的变量取 log1p 变换
+    regional_node_examined = log(regional_node_examined),
+    tumor_size = log(tumor_size),
+    age = (age)
+  )
+
+data_transformed %>%
+  dplyr::select(where(is.numeric)) %>%
+  pivot_longer(cols = everything(), names_to = "Variable", values_to = "Value") %>%
+  ggplot(aes(x = Value)) +
+  geom_histogram(bins = 15, fill = "blue", alpha = 0.7) +
+  facet_wrap(~Variable, scales = "free") +
+  theme_minimal() +
+  ggtitle("Transformed Variable Distributions")
+
+```
+
 
 ## optional: 数值变量分布： 可以绘制直方图或箱线图检查是否有极端值?
-```
 
 # Apply AFT methos
 
@@ -128,14 +148,12 @@ The figure above shows that the distribution is either not Weibull or log-normal
 
 survival rate distribution is closed to Weibull distribution --> adopt it as the hypothetical distribution.
 
-stepwise, filter out redundant variables.
+### stepwise
 ```{r}
 full_model <- survreg(Surv(survival_months, status) ~ ., data = data_clean, dist = "weibull")
 
 
-stepwise_model <- step(full_model, 
-                       direction = "both",     
-                       trace = TRUE)   
+stepwise_model <- stepAIC(full_model, direction = "both", trace = FALSE) 
 
 selected_formula <- formula(stepwise_model)
 selected_variables <- all.vars(selected_formula)[-1][-1]
@@ -150,7 +168,6 @@ selected_vars <- all.vars(selected_formula)[-1][-1]
 selected_vars = data_clean[, selected_vars, drop = FALSE]
 
 perform_chi_square_all <- function(data) {
-  # 初始化结果存储
   results <- data.frame(
     Variable1 = character(),
     Variable2 = character(),
@@ -190,6 +207,7 @@ chi_square_results <- perform_chi_square_all(selected_vars) |>
 
 # 打印结果
 print(chi_square_results)
+
 ```
 
 # Select the top ten interaction from ANOVA result and added them to the model
