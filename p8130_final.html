@@ -592,27 +592,29 @@ validation的结果很差，mean_cindex只有0.2+，所以目前先保留了AFT�
 <div id="剩下的任务" class="section level3">
 <h3>剩下的任务：</h3>
 <ul>
-<li><p>怎么解决不符合分布的问题 (已解决,未修改：according to lec 12: In
-large samples, the test is very sensitive to departures from normality,
-we could still assume a distribution given the residual is not normal,
-use qq plot is enough)</p></li>
-<li><p>model explanation</p></li>
-<li><p>transformation,
-reginol_node_positive还没找到合适的transformation，survival
+<li><p>outlier detection: Cook’s distance</p></li>
+<li><p>还没有完成不同种族间的比较</p></li>
+<li><p>model里只有三个main effect, 应该把其他的main
+effect都加上？（之前因为有interaction所以没加上）</p></li>
+<li><p>model explanation
 month不需要transform，因为假设的不是normal</p></li>
 <li><p>If the interaction term is NOT significant, remove it and re-fit
 the model only with the main effects</p></li>
-<li><p>还没看&amp;筛outlier</p></li>
-<li><p>model里只有三个main effect, 应该把其他的main
-effect都加上？（之前因为有interaction所以没加上）</p></li>
 <li><p>可以在尝试一下LASSO，但这个dataset
 dimension小，不一定适合用lasso，stepwise就够</p></li>
-<li><p>还没有完成不同种族间的比较</p></li>
-<li><p>排版还没有做的很好看</p></li>
-<li><p>输出都在代码上，还没有针对性回答问题的文字</p></li>
 <li><p>evaluation: prediction risk = bias^2 + var?</p></li>
-<li><p>report</p></li>
-<li><p>有model的问题dd我</p></li>
+<li><p>readability</p></li>
+</ul>
+<div id="done" class="section level4">
+<h4>Done</h4>
+<ul>
+<li>transformation,
+reginol_node_positive还没找到合适的transformation，survival</li>
+<li>whatever</li>
+<li>怎么解决不符合分布的问题 (已解决,未修改：according to lec 12: In
+large samples, the test is very sensitive to departures from normality,
+we could still assume a distribution given the residual is not normal,
+use qq plot is enough)</li>
 </ul>
 <pre class="r"><code>library(readr)
 library(dplyr)</code></pre>
@@ -679,6 +681,7 @@ library(fitdistrplus)</code></pre>
 <pre class="r"><code>library(goftest)
 library(survival)
 library(stats)</code></pre>
+</div>
 </div>
 <div id="data-wrangling" class="section level1">
 <h1>Data Wrangling</h1>
