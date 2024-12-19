@@ -37,6 +37,7 @@ library(dplyr)
 library(survival)
 library(caret)
 library(ggplot2)
+library(patchwork)
 library(kableExtra)
 library(minerva)
 library(stats)
@@ -76,7 +77,7 @@ head(data_clean) |>
   scroll_box(width = "100%", height = "300px")
 ```
 
-# exploratory description
+# Exploratory Data Analysis
 ```{r}
 summary_stats <- data_clean |> summary()
 print(summary_stats)
@@ -85,44 +86,197 @@ data_clean |> ggplot(aes(x = survival_months, fill = status)) +
   geom_histogram() +
   labs(title = "Survival Time Distribution", x = "Months", y = "Count") +
   theme_minimal()
+```
+Create a table for the description of each variable
 
-# categorical variable distribution
-data_clean |>
-  dplyr::select(race, marital_status, t_stage, n_stage) |>
-  mutate(across(everything(), as.character)) |>
-  pivot_longer(cols = everything(), names_to = "Variable", values_to = "Category") |>
-  ggplot(aes(x = Category, fill = Variable)) +
-  geom_bar(position = "dodge") +
-  labs(title = "Categorical Variable Distribution") +
-  theme_minimal()
+```{r}
+# Create a data frame for variable descriptions
+variable_descriptions <- data.frame(
+  Variable = c(
+    "Age", "Race", "Marital Status", "T Stage (Tumor)", "N Stage (Node)",
+    "Stage (6th Edition)", "Differentiate", "Grade", "A Stage", 
+    "Tumor Size", "Estrogen Status", "Progesterone Status",
+    "Regional Nodes Examined", "Regional Nodes Positive", 
+    "Survival Months", "Status"
+  ),
+  Description = c(
+    "Patient's age at the time of diagnosis or study enrollment.",
+    "Patient's racial identity: Black, White, Other.",
+    "Patient's marital status: Married, Single, Divorced, Separated, Widowed.",
+    "Tumor size and extent: T1 (≤2 cm), T2 (>2 cm but ≤5 cm), T3 (>5 cm), T4 (invasion into chest wall or skin).",
+    "Lymph node involvement: N1 (1–3 nodes), N2 (4–9 nodes), N3 (≥10 nodes).",
+    "Overall cancer stage: IIA, IIB, IIIA, IIIB, IIIC.",
+    "Tumor differentiation level: Well, Moderately, Poorly, Undifferentiated.",
+    "Tumor histological grade: Grade 1 (low), Grade 2 (moderate), Grade 3 (high), Grade IV (anaplastic).",
+    "Extent of cancer spread: Regional (local spread), Distant (metastasized).",
+    "Size of the tumor in millimeters.",
+    "Tumor's estrogen receptor status: Positive, Negative.",
+    "Tumor's progesterone receptor status: Positive, Negative.",
+    "Number of regional lymph nodes examined for cancer.",
+    "Number of regional lymph nodes found to be cancer-positive.",
+    "Number of months the patient survived after diagnosis or study enrollment.",
+    "Patient's status at the end of the study: Alive, Deceased."
+  )
+)
+
+# Display the table
+kable(variable_descriptions, col.names = c("Variable", "Description"), 
+      caption = "Variable Descriptions in the Breast Cancer Dataset", align = "l")
+```
+
+
+
+Side-by-Side Histograms for Categorical Variables
+```{r}
+# Histogram for `race`
+plot_race <- ggplot(data_clean, aes(x = race)) +
+  geom_bar(fill = "steelblue", color = "black") +
+  labs(title = "Race", x = "Race", y = "Frequency") +
+  theme_minimal(base_size = 12)
+
+# Histogram for `marital_status`
+plot_marital_status <- ggplot(data_clean, aes(x = marital_status)) +
+  geom_bar(fill = "lightgreen", color = "black") +
+  labs(title = "Marital Status", x = "Marital Status", y = "Frequency") +
+  theme_minimal(base_size = 12) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Histogram for `t_stage`
+plot_t_stage <- ggplot(data_clean, aes(x = t_stage)) +
+  geom_bar(fill = "salmon", color = "black") +
+  labs(title = "T Stage", x = "T Stage", y = "Frequency") +
+  theme_minimal(base_size = 12)
+
+# Histogram for `n_stage`
+plot_n_stage <- ggplot(data_clean, aes(x = n_stage)) +
+  geom_bar(fill = "skyblue", color = "black") +
+  labs(title = "N Stage", x = "N Stage", y = "Frequency") +
+  theme_minimal(base_size = 12)
+
+# Histogram for `stage_6th`
+plot_stage_6th <- ggplot(data_clean, aes(x = stage_6th)) +
+  geom_bar(fill = "gold", color = "black") +
+  labs(title = "Stage (6th Edition)", x = "Stage (6th Edition)", y = "Frequency") +
+  theme_minimal(base_size = 12)
+
+# Histogram for `differentiate`
+plot_differentiate <- ggplot(data_clean, aes(x = differentiate)) +
+  geom_bar(fill = "orchid", color = "black") +
+  labs(title = "Differentiate", x = "Differentiate", y = "Frequency") +
+  theme_minimal(base_size = 12) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Histogram for `grade`
+plot_grade <- ggplot(data_clean, aes(x = as.factor(grade))) +
+  geom_bar(fill = "coral", color = "black") +
+  labs(title = "Grade", x = "Grade", y = "Frequency") +
+  theme_minimal(base_size = 12)
+
+# Histogram for `a_stage`
+plot_a_stage <- ggplot(data_clean, aes(x = a_stage)) +
+  geom_bar(fill = "plum", color = "black") +
+  labs(title = "A Stage", x = "A Stage", y = "Frequency") +
+  theme_minimal(base_size = 12)
+
+# Histogram for `estrogen_status`
+plot_estrogen_status <- ggplot(data_clean, aes(x = estrogen_status)) +
+  geom_bar(fill = "lightblue", color = "black") +
+  labs(title = "Estrogen Status", x = "Estrogen Status", y = "Frequency") +
+  theme_minimal(base_size = 12)
+
+# Histogram for `progesterone_status`
+plot_progesterone_status <- ggplot(data_clean, aes(x = progesterone_status)) +
+  geom_bar(fill = "yellow", color = "black") +
+  labs(title = "Progesterone Status", x = "Progesterone Status", y = "Frequency") +
+  theme_minimal(base_size = 12)
+
+# Histogram for `status`
+plot_status <- ggplot(data_clean, aes(x = as.factor(status))) +
+  geom_bar(fill = "lightgreen", color = "black") +
+  labs(title = "Status", x = "Status", y = "Frequency") +
+  theme_minimal(base_size = 12)
+
+# Combine all plots into a grid using patchwork
+## Panel 1: First set of plots
+panel_1 <- (plot_race | plot_marital_status | plot_t_stage) /
+           (plot_n_stage | plot_stage_6th | plot_differentiate)
+
+## Panel 2: Second set of plots
+panel_2 <- (plot_grade | plot_a_stage | plot_estrogen_status) /
+           (plot_progesterone_status | plot_status)
+
+## Display Panel 1
+panel_1
+
+## Display Panel 2
+panel_2
+
+```
+Side-by-Side Histograms for Numerical Variables
+```{r}
+## Create Individual Plots for Numeric Variables
+plot_age <- ggplot(data_clean, aes(x = age)) +
+  geom_histogram(fill = "steelblue", color = "black", bins = 10) +
+  labs(title = "Age", x = "Age", y = "Frequency") +
+  theme_minimal(base_size = 12)
+
+plot_tumor_size <- ggplot(data_clean, aes(x = tumor_size)) +
+  geom_histogram(fill = "salmon", color = "black", bins = 10) +
+  labs(title = "Tumor Size", x = "Tumor Size", y = "Frequency") +
+  theme_minimal(base_size = 12)
+
+plot_regional_node_examined <- ggplot(data_clean, aes(x = regional_node_examined)) +
+  geom_histogram(fill = "lightgreen", color = "black", bins = 10) +
+  labs(title = "Regional Nodes Examined", x = "Regional Nodes Examined", y = "Frequency") +
+  theme_minimal(base_size = 12)
+
+plot_regional_node_positive <- ggplot(data_clean, aes(x = regional_node_positive)) +
+  geom_histogram(fill = "plum", color = "black", bins = 10) +
+  labs(title = "Regional Nodes Positive", x = "Regional Nodes Positive", y = "Frequency") +
+  theme_minimal(base_size = 12)
+
+plot_survival_months <- ggplot(data_clean, aes(x = survival_months)) +
+  geom_histogram(fill = "gold", color = "black", bins = 10) +
+  labs(title = "Survival Months", x = "Survival Months", y = "Frequency") +
+  theme_minimal(base_size = 12)
+
+(plot_age | plot_tumor_size | plot_regional_node_examined) /
+                 (plot_regional_node_positive | plot_survival_months)
 ```
 
 
 # Transformation
 ```{r}
-data_transformed <- data_clean %>%
-  mutate(
-    # 对右偏的变量取 log1p 变换
-    regional_node_examined = log(regional_node_examined),
-    tumor_size = log(tumor_size),
-    age = (age)
-  )
+data_clean$log_tumor_size <- log1p(data_clean$tumor_size) 
+data_clean$log_nodes_examined <- log1p(data_clean$regional_node_examined)
+# data_clean$log_nodes_positive <- log1p(data_clean$regional_node_positive)
+# not useful
+# data_clean$log_survival_months <- log1p(data_clean$survival_months)
+# not useful
 
-data_transformed %>%
-  dplyr::select(where(is.numeric)) %>%
-  pivot_longer(cols = everything(), names_to = "Variable", values_to = "Value") %>%
-  ggplot(aes(x = Value)) +
-  geom_histogram(bins = 15, fill = "blue", alpha = 0.7) +
-  facet_wrap(~Variable, scales = "free") +
-  theme_minimal() +
-  ggtitle("Transformed Variable Distributions")
 
+## Create individual plots
+plot_log_tumor_size <- ggplot(data_clean, aes(x = log_tumor_size)) +
+  geom_histogram(fill = "steelblue", color = "black", bins = 10) +
+  labs(title = "Log Tumor Size", x = "Log(Tumor Size)", y = "Frequency") +
+  theme_minimal(base_size = 12)
+
+plot_log_nodes_examined <- ggplot(data_clean, aes(x = log_nodes_examined)) +
+  geom_histogram(fill = "salmon", color = "black", bins = 10) +
+  labs(title = "Log Regional Nodes Examined", x = "Log(Regional Nodes Examined)", y = "Frequency") +
+  theme_minimal(base_size = 12)
+
+
+  theme_minimal(base_size = 12)
+
+## Combine the plots into a panel using patchwork
+(plot_log_tumor_size | plot_log_nodes_examined) 
 ```
 
 
 ## optional: 数值变量分布： 可以绘制直方图或箱线图检查是否有极端值?
 
-# Apply AFT methos
+# Apply AFT method
 
 ## Check survival rate distribution.
 ```{r}
