@@ -53,6 +53,7 @@ data_clean = read_csv("data/Project_2_data.csv") |>
   rename(
     Stage_6th = `6th Stage`) |>
   janitor::clean_names() |>
+  
 mutate(status = as.numeric(status == "Dead"),
        race = as.factor(race),
        marital_status = as.factor(marital_status),
@@ -74,6 +75,7 @@ head(data_clean) |>
   kable_styling(full_width = FALSE) %>%
   scroll_box(width = "100%", height = "300px")
 ```
+
 # exploratory description
 ```{r}
 summary_stats <- data_clean |> summary()
@@ -84,7 +86,7 @@ data_clean |> ggplot(aes(x = survival_months, fill = status)) +
   labs(title = "Survival Time Distribution", x = "Months", y = "Count") +
   theme_minimal()
 
-# 类别变量分布
+# categorical variable distribution
 data_clean |>
   dplyr::select(race, marital_status, t_stage, n_stage) |>
   mutate(across(everything(), as.character)) |>
