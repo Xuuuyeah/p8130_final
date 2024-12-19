@@ -9,15 +9,14 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# 目前遇到的问题：
+### 目前遇到的问题：
 建模用的是AFT model, assume "weibull" distribution. 但是输出结果后发现survival months不属于"weibull" distribution (根据残差是否是normal的方法),同样也拒绝了log- normal distribution.
 
 由于找不到假设的分布，使用非参数方法COX model后cross validation的结果很差，mean_cindex只有0.2+，所以目前先保留了AFT的方法，还在看怎么解决不符合分布的问题。。。
 
-# 剩下的任务：
+### 剩下的任务：
 * 怎么解决不符合分布的问题 (已解决,未修改：according to lec 12: In large samples, the test is very sensitive to departures from normality, we could still assume a distribution given the residual is not normal, use qq plot is enough) 
 * model explanation
-* R包redundant
 * transformation, reginol_node_positive还没找到合适的transformation，survival month不需要transform，因为假设的不是normal
 * If the interaction term is NOT significant, remove it and re-fit the model only with the main effects
 * 还没看&筛outlier
@@ -48,6 +47,9 @@ library(goftest)
 library(survival)
 library(stats)
 ```
+# Data Wrangling
+
+## Loading and cleaning the data
 
 ```{r}
 data_clean = read_csv("data/Project_2_data.csv") |>
@@ -77,7 +79,7 @@ head(data_clean) |>
   scroll_box(width = "100%", height = "300px")
 ```
 
-# Exploratory Data Analysis
+## Exploratory Data Analysis
 ```{r}
 summary_stats <- data_clean |> summary()
 print(summary_stats)
@@ -366,9 +368,9 @@ print(chi_square_results)
 
 ```
 
-# Select the top ten interaction from ANOVA result and added them to the model
+Select the top ten interaction from ANOVA result and added them to the model
 
-# Only selcted `age`, `race` and `marital_status` as main effect. unlike other corelated pathological factor, these factors are either less likely to correlated with each other or correlated with pathological factors.
+Only selcted `age`, `race` and `marital_status` as main effect. unlike other corelated pathological factor, these factors are either less likely to correlated with each other or correlated with pathological factors.
 ```{r}
 top_interactions <- head(chi_square_results, 10)
 print("Top 10 Interactions:")
