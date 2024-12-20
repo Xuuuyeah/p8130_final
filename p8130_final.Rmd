@@ -453,5 +453,32 @@ print(cv_results_with_residuals$mean_cindex)
 print(cv_results_with_residuals$sd_cindex)
 ```
 
+# Outliners
+```{r}
+aft_model_outliner <- survreg(aft_formula, data = data_clean, dist = "weibull")
+
+# Residuals
+residuals <- residuals(aft_model_outliner, type = "deviance")
+
+# Leverage (hat values)
+X <- model.matrix(aft_model_outliner)  # Design matrix
+H <- X %*% solve(t(X) %*% X) %*% t(X)  # Hat matrix
+leverage <- diag(H)
+
+# Number of parameters
+p <- length(coef(aft_model_outliner))
+
+# Cook's Distance
+cooks_distance <- (residuals^2 / p) * (leverage / (1 - leverage)^2)
+
+# Plot Cook's distance
+plot(cooks_distance, type = "h", main = "Cook's Distance", xlab = "Observation", ylab = "Cook's Distance")
+abline(h = 4 / nrow(data_clean), col = "red", lty = 2)
+
+# Identify observations with high Cook's distance
+outliers <- which(cooks_distance > 4 / nrow(data_clean))
+print(unname(outliers))
+```
+
 # Reference
 
