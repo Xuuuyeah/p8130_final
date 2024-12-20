@@ -519,7 +519,6 @@ print(coeff_table)
 library(knitr)
 kable(coeff_table, digits = 2, caption = "Coefficient Changes with and without Influential Points")
 
-
 ```
 
 
