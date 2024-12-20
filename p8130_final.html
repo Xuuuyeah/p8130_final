@@ -1949,10 +1949,10 @@ print(&quot;Final AFT Formula:&quot;)</code></pre>
 <pre class="r"><code>aft_model_output &lt;- survreg(aft_formula, data = data_clean, dist = &quot;weibull&quot;)
 
 # Tidy the model output
-tidy_fit &lt;- tidy(aft_model_output, conf.int = TRUE)
+tidy_aft_model_output &lt;- tidy(aft_model_output, conf.int = TRUE)
 
 # Add exponentiated coefficients for time ratios
-tidy_fit &lt;- tidy_fit %&gt;%
+tidy_aft_model_output &lt;- tidy_aft_model_output %&gt;%
   mutate(
     exp_coefficient = exp(estimate),
     exp_conf_low = exp(conf.low),
@@ -1961,7 +1961,7 @@ tidy_fit &lt;- tidy_fit %&gt;%
   dplyr::select(term, estimate, exp_coefficient, exp_conf_low, exp_conf_high, p.value )
 
 # Print the readable table
-tidy_fit %&gt;%
+tidy_aft_model_output %&gt;%
   print(n = Inf)</code></pre>
 <pre><code>## # A tibble: 53 × 6
 ##    term            estimate exp_coefficient exp_conf_low exp_conf_high   p.value
@@ -2121,6 +2121,188 @@ print(unname(outliers))</code></pre>
 ## [181] 3139 3207 3213 3249 3254 3278 3288 3328 3331 3337 3440 3446 3457 3475 3501
 ## [196] 3516 3526 3527 3592 3595 3639 3641 3647 3664 3687 3712 3725 3727 3732 3746
 ## [211] 3772 3776 3839 3841 3883 3894 3897 3927 3975 4014 4018</code></pre>
+<pre class="r"><code># Exclude outliers from the data
+data_clean_no_outliers &lt;- data_clean[-outliers, ]
+
+# Refit the AFT model without outliers
+aft_model_no_outlier &lt;- survreg(aft_formula, data = data_clean_no_outliers, dist = &quot;weibull&quot;)
+
+# Summary of the new model
+summary(aft_model_no_outlier)</code></pre>
+<pre><code>## 
+## Call:
+## survreg(formula = aft_formula, data = data_clean_no_outliers, 
+##     dist = &quot;weibull&quot;)
+##                                                                    Value
+## (Intercept)                                                     2.06e+00
+## n_stageN2                                                      -5.22e-02
+## n_stageN3                                                       1.25e-01
+## regional_node_positive                                         -1.53e-02
+## regional_node_examined                                          1.74e-03
+## estrogen_statusPositive                                        -5.89e-02
+## progesterone_statusPositive                                     2.34e-01
+## t_stageT2                                                      -1.31e-02
+## t_stageT3                                                      -3.42e-03
+## t_stageT4                                                       1.78e+00
+## differentiatePoorly differentiated                             -1.42e-01
+## differentiateUndifferentiated                                  -2.51e-01
+## differentiateWell differentiated                               -2.33e-02
+## age                                                            -3.32e-03
+## raceOther                                                       1.42e-01
+## raceWhite                                                       6.96e-02
+## n_stageN2:regional_node_positive                                3.41e-04
+## n_stageN3:regional_node_positive                               -1.63e-02
+## regional_node_positive:regional_node_examined                   7.15e-04
+## estrogen_statusPositive:progesterone_statusPositive            -1.68e-01
+## n_stageN2:regional_node_examined                                7.43e-04
+## n_stageN3:regional_node_examined                                7.46e-05
+## n_stageN2:t_stageT2                                             7.58e-03
+## n_stageN3:t_stageT2                                             1.05e-01
+## n_stageN2:t_stageT3                                            -1.25e-02
+## n_stageN3:t_stageT3                                             3.42e-02
+## n_stageN2:t_stageT4                                            -1.89e+00
+## n_stageN3:t_stageT4                                            -1.81e+00
+## regional_node_positive:t_stageT2                               -6.36e-03
+## regional_node_positive:t_stageT3                               -5.53e-03
+## regional_node_positive:t_stageT4                               -1.22e-03
+## estrogen_statusPositive:differentiatePoorly differentiated      1.64e-01
+## estrogen_statusPositive:differentiateUndifferentiated                 NA
+## estrogen_statusPositive:differentiateWell differentiated        4.55e-01
+## progesterone_statusPositive:differentiatePoorly differentiated -2.31e-02
+## progesterone_statusPositive:differentiateUndifferentiated             NA
+## progesterone_statusPositive:differentiateWell differentiated   -2.84e-01
+## n_stageN2:differentiatePoorly differentiated                    3.58e-02
+## n_stageN3:differentiatePoorly differentiated                   -2.79e-02
+## n_stageN2:differentiateUndifferentiated                               NA
+## n_stageN3:differentiateUndifferentiated                               NA
+## n_stageN2:differentiateWell differentiated                      3.86e-02
+## n_stageN3:differentiateWell differentiated                     -1.09e-01
+## t_stageT2:differentiatePoorly differentiated                   -5.88e-02
+## t_stageT3:differentiatePoorly differentiated                   -3.93e-02
+## t_stageT4:differentiatePoorly differentiated                   -9.61e-02
+## t_stageT2:differentiateUndifferentiated                               NA
+## t_stageT3:differentiateUndifferentiated                               NA
+## t_stageT4:differentiateUndifferentiated                               NA
+## t_stageT2:differentiateWell differentiated                     -1.20e-01
+## t_stageT3:differentiateWell differentiated                      1.67e+00
+## t_stageT4:differentiateWell differentiated                      1.71e+00
+## Log(scale)                                                     -2.24e+00
+##                                                                Std. Error
+## (Intercept)                                                      6.07e-02
+## n_stageN2                                                        5.35e-02
+## n_stageN3                                                        1.31e-01
+## regional_node_positive                                           8.35e-03
+## regional_node_examined                                           1.13e-03
+## estrogen_statusPositive                                          4.63e-02
+## progesterone_statusPositive                                      1.17e-01
+## t_stageT2                                                        2.03e-02
+## t_stageT3                                                        3.19e-02
+## t_stageT4                                                        3.83e+02
+## differentiatePoorly differentiated                               5.00e-02
+## differentiateUndifferentiated                                    1.11e-01
+## differentiateWell differentiated                                 1.37e-01
+## age                                                              5.97e-04
+## raceOther                                                        2.86e-02
+## raceWhite                                                        1.59e-02
+## n_stageN2:regional_node_positive                                 7.77e-03
+## n_stageN3:regional_node_positive                                 6.80e-03
+## regional_node_positive:regional_node_examined                    3.10e-04
+## estrogen_statusPositive:progesterone_statusPositive              1.16e-01
+## n_stageN2:regional_node_examined                                 2.35e-03
+## n_stageN3:regional_node_examined                                 5.10e-03
+## n_stageN2:t_stageT2                                              3.72e-02
+## n_stageN3:t_stageT2                                              8.52e-02
+## n_stageN2:t_stageT3                                              4.81e-02
+## n_stageN3:t_stageT3                                              9.31e-02
+## n_stageN2:t_stageT4                                              3.83e+02
+## n_stageN3:t_stageT4                                              3.83e+02
+## regional_node_positive:t_stageT2                                 5.16e-03
+## regional_node_positive:t_stageT3                                 5.61e-03
+## regional_node_positive:t_stageT4                                 1.05e-02
+## estrogen_statusPositive:differentiatePoorly differentiated       5.25e-02
+## estrogen_statusPositive:differentiateUndifferentiated            0.00e+00
+## estrogen_statusPositive:differentiateWell differentiated         1.95e-01
+## progesterone_statusPositive:differentiatePoorly differentiated   2.78e-02
+## progesterone_statusPositive:differentiateUndifferentiated        0.00e+00
+## progesterone_statusPositive:differentiateWell differentiated     1.87e-01
+## n_stageN2:differentiatePoorly differentiated                     2.58e-02
+## n_stageN3:differentiatePoorly differentiated                     2.73e-02
+## n_stageN2:differentiateUndifferentiated                          0.00e+00
+## n_stageN3:differentiateUndifferentiated                          0.00e+00
+## n_stageN2:differentiateWell differentiated                       6.84e-02
+## n_stageN3:differentiateWell differentiated                       7.24e-02
+## t_stageT2:differentiatePoorly differentiated                     2.59e-02
+## t_stageT3:differentiatePoorly differentiated                     3.48e-02
+## t_stageT4:differentiatePoorly differentiated                     7.32e-02
+## t_stageT2:differentiateUndifferentiated                          0.00e+00
+## t_stageT3:differentiateUndifferentiated                          0.00e+00
+## t_stageT4:differentiateUndifferentiated                          0.00e+00
+## t_stageT2:differentiateWell differentiated                       5.96e-02
+## t_stageT3:differentiateWell differentiated                       2.52e+02
+## t_stageT4:differentiateWell differentiated                       8.21e+02
+## Log(scale)                                                       4.13e-02
+##                                                                     z       p
+## (Intercept)                                                     33.93 &lt; 2e-16
+## n_stageN2                                                       -0.98  0.3294
+## n_stageN3                                                        0.95  0.3415
+## regional_node_positive                                          -1.83  0.0672
+## regional_node_examined                                           1.53  0.1250
+## estrogen_statusPositive                                         -1.27  0.2031
+## progesterone_statusPositive                                      2.00  0.0451
+## t_stageT2                                                       -0.65  0.5188
+## t_stageT3                                                       -0.11  0.9148
+## t_stageT4                                                        0.00  0.9963
+## differentiatePoorly differentiated                              -2.83  0.0046
+## differentiateUndifferentiated                                   -2.27  0.0233
+## differentiateWell differentiated                                -0.17  0.8647
+## age                                                             -5.57 2.6e-08
+## raceOther                                                        4.98 6.3e-07
+## raceWhite                                                        4.37 1.3e-05
+## n_stageN2:regional_node_positive                                 0.04  0.9650
+## n_stageN3:regional_node_positive                                -2.40  0.0165
+## regional_node_positive:regional_node_examined                    2.30  0.0212
+## estrogen_statusPositive:progesterone_statusPositive             -1.46  0.1452
+## n_stageN2:regional_node_examined                                 0.32  0.7514
+## n_stageN3:regional_node_examined                                 0.01  0.9883
+## n_stageN2:t_stageT2                                              0.20  0.8387
+## n_stageN3:t_stageT2                                              1.23  0.2187
+## n_stageN2:t_stageT3                                             -0.26  0.7951
+## n_stageN3:t_stageT3                                              0.37  0.7131
+## n_stageN2:t_stageT4                                              0.00  0.9961
+## n_stageN3:t_stageT4                                              0.00  0.9962
+## regional_node_positive:t_stageT2                                -1.23  0.2173
+## regional_node_positive:t_stageT3                                -0.99  0.3240
+## regional_node_positive:t_stageT4                                -0.12  0.9071
+## estrogen_statusPositive:differentiatePoorly differentiated       3.12  0.0018
+## estrogen_statusPositive:differentiateUndifferentiated              NA      NA
+## estrogen_statusPositive:differentiateWell differentiated         2.33  0.0198
+## progesterone_statusPositive:differentiatePoorly differentiated  -0.83  0.4072
+## progesterone_statusPositive:differentiateUndifferentiated          NA      NA
+## progesterone_statusPositive:differentiateWell differentiated    -1.52  0.1289
+## n_stageN2:differentiatePoorly differentiated                     1.39  0.1656
+## n_stageN3:differentiatePoorly differentiated                    -1.02  0.3070
+## n_stageN2:differentiateUndifferentiated                            NA      NA
+## n_stageN3:differentiateUndifferentiated                            NA      NA
+## n_stageN2:differentiateWell differentiated                       0.56  0.5724
+## n_stageN3:differentiateWell differentiated                      -1.51  0.1315
+## t_stageT2:differentiatePoorly differentiated                    -2.27  0.0230
+## t_stageT3:differentiatePoorly differentiated                    -1.13  0.2580
+## t_stageT4:differentiatePoorly differentiated                    -1.31  0.1891
+## t_stageT2:differentiateUndifferentiated                            NA      NA
+## t_stageT3:differentiateUndifferentiated                            NA      NA
+## t_stageT4:differentiateUndifferentiated                            NA      NA
+## t_stageT2:differentiateWell differentiated                      -2.02  0.0432
+## t_stageT3:differentiateWell differentiated                       0.01  0.9947
+## t_stageT4:differentiateWell differentiated                       0.00  0.9983
+## Log(scale)                                                     -54.25 &lt; 2e-16
+## 
+## Scale= 0.106 
+## 
+## Weibull distribution
+## Loglik(model)= -1340.2   Loglik(intercept only)= -1576.1
+##  Chisq= 471.66 on 51 degrees of freedom, p= 1.8e-69 
+## Number of Newton-Raphson Iterations: 21 
+## n= 3803</code></pre>
 </div>
 <div id="reference" class="section level1">
 <h1>Reference</h1>
