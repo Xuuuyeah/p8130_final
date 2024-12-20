@@ -56,6 +56,7 @@ library(goftest)
 library(survival)
 library(stats)
 library(broom)
+library(flexsurv)
 ```
 # Data Wrangling
 
@@ -399,23 +400,8 @@ print(aft_formula)
 
 # Model output
 ```{r}
-aft_model_output <- survreg(aft_formula, data = data_clean, dist = "weibull")
+flexsurvreg(formula = aft_formula, data = data_clean, dist = "weibull")
 
-# Tidy the model output
-tidy_aft_model_output <- tidy(aft_model_output, conf.int = TRUE)
-
-# Add exponentiated coefficients for time ratios
-tidy_aft_model_output <- tidy_aft_model_output %>%
-  mutate(
-    exp_coefficient = exp(estimate),
-    exp_conf_low = exp(conf.low),
-    exp_conf_high = exp(conf.high)
-  ) %>%
-  dplyr::select(term, estimate, exp_coefficient, exp_conf_low, exp_conf_high, p.value )
-
-# Print the readable table
-tidy_aft_model_output %>%
-  print(n = Inf)
 ```
 
 # Evaluate the model with 5-fold cross validation
@@ -479,6 +465,7 @@ print(cv_results_with_residuals$sd_cindex)
 ```{r}
 aft_model_outliner <- survreg(aft_formula, data = data_clean, dist = "weibull")
 
+
 # Residuals
 residuals <- residuals(aft_model_outliner, type = "deviance")
 
@@ -505,10 +492,9 @@ print(unname(outliers))
 data_clean_no_outliers <- data_clean[-outliers, ]
 
 # Refit the AFT model without outliers
-aft_model_no_outlier <- survreg(aft_formula, data = data_clean_no_outliers, dist = "weibull")
+survreg(formula = aft_formula, data = data_clean_no_outliers, dist = "weibull")
 
-# Summary of the new model
-summary(aft_model_no_outlier)
+
 
 ```
 
