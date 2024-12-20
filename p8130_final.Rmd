@@ -55,6 +55,7 @@ library(tidyverse)
 library(goftest)
 library(survival)
 library(stats)
+library(broom)
 ```
 # Data Wrangling
 
@@ -396,6 +397,25 @@ print("Final AFT Formula:")
 print(aft_formula)
 ```
 
+# Model output
+```{r}
+aft_model_output <- survreg(aft_formula, data = data_clean, dist = "weibull")
+
+# Tidy the model output
+tidy_fit <- tidy(aft_model_output, conf.int = TRUE)
+
+# Add exponentiated coefficients for time ratios
+tidy_fit <- tidy_fit %>%
+  mutate(
+    exp_coefficient = exp(estimate)
+  ) %>%
+  dplyr::select(term, estimate, exp_coefficient, conf.low, conf.high, p.value )
+
+# Print the readable table
+tidy_fit %>%
+  print(n = Inf)
+```
+
 # Evaluate the model with 5-fold cross validation
 # 5-fold cross validation
 ```{r}
@@ -453,7 +473,7 @@ print(cv_results_with_residuals$mean_cindex)
 print(cv_results_with_residuals$sd_cindex)
 ```
 
-# Outliners
+# Outliers
 ```{r}
 aft_model_outliner <- survreg(aft_formula, data = data_clean, dist = "weibull")
 

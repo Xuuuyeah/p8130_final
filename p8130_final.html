@@ -686,7 +686,8 @@ library(fitdistrplus)</code></pre>
 ## ℹ Use the conflicted package (&lt;http://conflicted.r-lib.org/&gt;) to force all conflicts to become errors</code></pre>
 <pre class="r"><code>library(goftest)
 library(survival)
-library(stats)</code></pre>
+library(stats)
+library(broom)</code></pre>
 </div>
 </div>
 <div id="data-wrangling" class="section level1">
@@ -1943,6 +1944,80 @@ print(&quot;Final AFT Formula:&quot;)</code></pre>
 </div>
 </div>
 </div>
+<div id="model-output" class="section level1">
+<h1>Model output</h1>
+<pre class="r"><code>aft_model_output &lt;- survreg(aft_formula, data = data_clean, dist = &quot;weibull&quot;)
+
+# Tidy the model output
+tidy_fit &lt;- tidy(aft_model_output, conf.int = TRUE)
+
+# Add exponentiated coefficients for time ratios
+tidy_fit &lt;- tidy_fit %&gt;%
+  mutate(
+    exp_coefficient = exp(estimate)
+  ) %&gt;%
+  dplyr::select(term, estimate, exp_coefficient, conf.low, conf.high, p.value )
+
+# Print the readable table
+tidy_fit %&gt;%
+  print(n = Inf)</code></pre>
+<pre><code>## # A tibble: 53 × 6
+##    term                    estimate exp_coefficient conf.low conf.high   p.value
+##    &lt;chr&gt;                      &lt;dbl&gt;           &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;
+##  1 (Intercept)              1.97e+0           7.14   1.85e+0  2.08     2.11e-245
+##  2 n_stageN2               -1.11e-1           0.895 -2.30e-1  0.00793  6.73e-  2
+##  3 n_stageN3               -1.85e-1           0.831 -3.93e-1  0.0237   8.23e-  2
+##  4 regional_node_positive  -6.98e-3           0.993 -2.19e-2  0.00791  3.58e-  1
+##  5 regional_node_examined   4.24e-3           1.00   1.59e-3  0.00688  1.67e-  3
+##  6 estrogen_statusPositive  8.08e-2           1.08   8.13e-3  0.154    2.93e-  2
+##  7 progesterone_statusPos…  1.51e-1           1.16   4.72e-3  0.298    4.31e-  2
+##  8 t_stageT2               -4.43e-2           0.957 -9.29e-2  0.00426  7.37e-  2
+##  9 t_stageT3               -5.00e-2           0.951 -1.23e-1  0.0228   1.78e-  1
+## 10 t_stageT4               -1.28e-1           0.880 -2.65e-1  0.00777  6.46e-  2
+## 11 differentiatePoorly di… -1.15e-2           0.989 -9.96e-2  0.0767   7.99e-  1
+## 12 differentiateUndiffere… -3.22e-2           0.968 -4.96e-1  0.432    8.92e-  1
+## 13 differentiateWell diff…  9.28e-2           1.10  -1.54e-1  0.339    4.61e-  1
+## 14 age                     -3.07e-3           0.997 -4.49e-3 -0.00164  2.43e-  5
+## 15 raceOther                1.22e-1           1.13   5.85e-2  0.185    1.66e-  4
+## 16 raceWhite                6.79e-2           1.07   2.94e-2  0.106    5.41e-  4
+## 17 n_stageN2:regional_nod…  2.38e-3           1.00  -1.47e-2  0.0194   7.84e-  1
+## 18 n_stageN3:regional_nod… -1.65e-3           0.998 -1.33e-2  0.0100   7.81e-  1
+## 19 regional_node_positive…  6.66e-6           1.00  -3.27e-4  0.000340 9.69e-  1
+## 20 estrogen_statusPositiv… -6.13e-2           0.941 -2.04e-1  0.0818   4.01e-  1
+## 21 n_stageN2:regional_nod…  8.56e-4           1.00  -3.86e-3  0.00557  7.22e-  1
+## 22 n_stageN3:regional_nod…  3.38e-3           1.00  -4.14e-3  0.0109   3.79e-  1
+## 23 n_stageN2:t_stageT2      4.20e-2           1.04  -4.00e-2  0.124    3.15e-  1
+## 24 n_stageN3:t_stageT2      1.22e-1           1.13  -3.15e-2  0.276    1.19e-  1
+## 25 n_stageN2:t_stageT3      3.15e-2           1.03  -7.28e-2  0.136    5.54e-  1
+## 26 n_stageN3:t_stageT3      1.23e-1           1.13  -4.48e-2  0.291    1.51e-  1
+## 27 n_stageN2:t_stageT4      3.15e-3           1.00  -1.57e-1  0.164    9.69e-  1
+## 28 n_stageN3:t_stageT4      5.39e-2           1.06  -1.89e-1  0.297    6.64e-  1
+## 29 regional_node_positive… -3.33e-3           0.997 -1.16e-2  0.00498  4.32e-  1
+## 30 regional_node_positive… -6.72e-3           0.993 -1.57e-2  0.00223  1.41e-  1
+## 31 regional_node_positive…  9.20e-5           1.00  -1.43e-2  0.0145   9.90e-  1
+## 32 estrogen_statusPositiv…  3.80e-2           1.04  -5.27e-2  0.129    4.12e-  1
+## 33 estrogen_statusPositiv…  2.14e-1           1.24  -2.65e-1  0.694    3.81e-  1
+## 34 estrogen_statusPositiv…  1.13e-1           1.12  -1.48e-1  0.374    3.97e-  1
+## 35 progesterone_statusPos… -3.85e-2           0.962 -1.06e-1  0.0290   2.64e-  1
+## 36 progesterone_statusPos… -3.48e-1           0.706 -9.02e-1  0.206    2.18e-  1
+## 37 progesterone_statusPos… -5.53e-2           0.946 -2.12e-1  0.101    4.89e-  1
+## 38 n_stageN2:differentiat…  1.89e-3           1.00  -6.14e-2  0.0652   9.53e-  1
+## 39 n_stageN3:differentiat… -2.56e-2           0.975 -9.00e-2  0.0387   4.35e-  1
+## 40 n_stageN2:differentiat… -3.13e-1           0.731 -7.43e-1  0.117    1.54e-  1
+## 41 n_stageN3:differentiat… -1.76e-1           0.839 -5.87e-1  0.236    4.03e-  1
+## 42 n_stageN2:differentiat… -3.03e-2           0.970 -1.66e-1  0.105    6.61e-  1
+## 43 n_stageN3:differentiat… -1.57e-1           0.855 -2.82e-1 -0.0306   1.48e-  2
+## 44 t_stageT2:differentiat… -5.89e-2           0.943 -1.24e-1  0.00572  7.40e-  2
+## 45 t_stageT3:differentiat… -4.26e-2           0.958 -1.23e-1  0.0382   3.01e-  1
+## 46 t_stageT4:differentiat… -6.35e-2           0.939 -1.81e-1  0.0536   2.88e-  1
+## 47 t_stageT2:differentiat…  5.15e-2           1.05  -4.11e-1  0.514    8.27e-  1
+## 48 t_stageT3:differentiat…  1.71e-1           1.19  -2.68e-1  0.610    4.45e-  1
+## 49 t_stageT4:differentiat…  3.80e-1           1.46  -3.88e-1  1.15     3.32e-  1
+## 50 t_stageT2:differentiat… -9.61e-2           0.908 -2.15e-1  0.0230   1.14e-  1
+## 51 t_stageT3:differentiat…  2.78e-2           1.03  -1.59e-1  0.215    7.71e-  1
+## 52 t_stageT4:differentiat… -2.55e-2           0.975 -2.82e-1  0.231    8.45e-  1
+## 53 Log(scale)              -1.89e+0           0.151 NA       NA        0</code></pre>
+</div>
 <div id="evaluate-the-model-with-5-fold-cross-validation" class="section level1">
 <h1>Evaluate the model with 5-fold cross validation</h1>
 </div>
@@ -2004,8 +2079,8 @@ print(&quot;5-Fold Cross-Validation Results with Residual Analysis:&quot;)</code
 <pre class="r"><code>print(cv_results_with_residuals$sd_cindex)</code></pre>
 <pre><code>## [1] 0.01767357</code></pre>
 </div>
-<div id="outliners" class="section level1">
-<h1>Outliners</h1>
+<div id="outliers" class="section level1">
+<h1>Outliers</h1>
 <pre class="r"><code>aft_model_outliner &lt;- survreg(aft_formula, data = data_clean, dist = &quot;weibull&quot;)
 
 # Residuals
