@@ -63,7 +63,7 @@ library(flexsurv)
 ## Loading and cleaning the data
 
 ```{r}
-data_clean = read_csv("data/Project_2_data.csv") |>
+data_clean = read_csv("/Users/boxiangtang/Desktop/Biosta_HW/Biosta_final/Project_2_data.csv") |>
   rename(
     Stage_6th = `6th Stage`) |>
   janitor::clean_names() |>
@@ -81,6 +81,11 @@ mutate(status = as.numeric(status == "Dead"),
        progesterone_status = as.factor(progesterone_status),
        survival_months = log(survival_months) + 1
   )
+
+
+# correct the col name: from "reginol_node_positive" to "regional_node_positive" (TBX)
+names(data_clean)[names(data_clean) == "reginol_node_positive"] <- "regional_node_positive"
+
 
 summary(data_clean)
 
@@ -225,6 +230,59 @@ panel_1
 panel_2
 
 ```
+
+
+# Pie Chart for Categorical Variables (TBX)
+```{r}
+
+# Ensure variables are converted to factor type
+convert_to_factor <- function(data, vars) {
+  data %>% mutate(across(all_of(vars), as.factor))
+}
+
+# Convert variables to factor type
+factor_vars <- c("race", "marital_status", "t_stage", "n_stage", 
+                 "stage_6th", "differentiate", "grade", "a_stage", 
+                 "estrogen_status", "progesterone_status", "status")
+data_clean <- convert_to_factor(data_clean, factor_vars)
+
+# Define a function to simplify long labels
+simplify_labels <- function(label, max_length = 12) {
+  ifelse(nchar(label) > max_length, paste0(substr(label, 1, max_length), "..."), label)
+}
+
+# Define a function to plot pie charts
+plot_pie <- function(data, var, title) {
+  counts <- data %>% count(!!sym(var)) %>% mutate(percent = round(n / sum(n) * 100, 1))
+  counts <- counts %>% mutate(label = paste0(simplify_labels(as.character(!!sym(var))), " (", percent, "%)"))
+  pie_data <- counts$n
+  labels <- counts$label
+  pie(pie_data, labels = labels, main = title, col = rainbow(length(pie_data)))
+}
+
+# Display in multiple pages
+# Page 1
+par(mfrow = c(2, 2), mar = c(4, 4, 2, 1))
+plot_pie(data_clean, "race", "Race")
+plot_pie(data_clean, "marital_status", "Marital Status")
+plot_pie(data_clean, "t_stage", "T Stage")
+plot_pie(data_clean, "n_stage", "N Stage")
+
+# Page 2
+par(mfrow = c(2, 2), mar = c(4, 4, 2, 1))
+plot_pie(data_clean, "stage_6th", "Stage (6th Edition)")
+plot_pie(data_clean, "differentiate", "Differentiate")
+plot_pie(data_clean, "grade", "Grade")
+plot_pie(data_clean, "a_stage", "A Stage")
+
+# Page 3
+par(mfrow = c(2, 2), mar = c(4, 4, 2, 1))
+plot_pie(data_clean, "estrogen_status", "Estrogen Status")
+plot_pie(data_clean, "progesterone_status", "Progesterone Status")
+plot_pie(data_clean, "status", "Status")
+
+```
+
 Side-by-Side Histograms for Numerical Variables
 ```{r}
 ## Create Individual Plots for Numeric Variables
@@ -258,6 +316,57 @@ plot_survival_months <- ggplot(data_clean, aes(x = survival_months)) +
 ```
 
 
+# Box Plot for Numerical Variables (TBX)
+```{r}
+# Select numeric variables and remove missing values
+num_vars <- c("age", "tumor_size", "regional_node_examined", "regional_node_positive", "survival_months")
+
+# Use base R to filter the required columns
+data_clean_numeric <- data_clean[, num_vars, drop = FALSE]
+
+# Remove rows with missing values
+data_clean_numeric <- na.omit(data_clean_numeric)
+
+# Plot boxplots for each numeric variable
+par(mfrow = c(2, 3)) # Set layout to 2 rows and 3 columns
+
+boxplot(data_clean_numeric$age,
+        main = "Age",
+        ylab = "Age",
+        col = "steelblue",
+        border = "black")
+
+boxplot(data_clean_numeric$tumor_size,
+        main = "Tumor Size",
+        ylab = "Tumor Size",
+        col = "salmon",
+        border = "black")
+
+boxplot(data_clean_numeric$regional_node_examined,
+        main = "Regional Nodes Examined",
+        ylab = "Regional Nodes Examined",
+        col = "lightgreen",
+        border = "black")
+
+boxplot(data_clean_numeric$regional_node_positive,
+        main = "Regional Nodes Positive",
+        ylab = "Regional Nodes Positive",
+        col = "plum",
+        border = "black")
+
+boxplot(data_clean_numeric$survival_months,
+        main = "Survival Months",
+        ylab = "Survival Months",
+        col = "gold",
+        border = "black")
+
+# Reset plot parameters to default
+par(mfrow = c(1, 1))
+
+```
+
+
+
 # Transformation
 ```{r}
 data_clean$log_tumor_size <- log1p(data_clean$tumor_size) 
@@ -285,6 +394,137 @@ plot_log_nodes_examined <- ggplot(data_clean, aes(x = log_nodes_examined)) +
 ## Combine the plots into a panel using patchwork
 (plot_log_tumor_size | plot_log_nodes_examined) 
 ```
+
+
+
+# Identify the influential outliers (TBX)
+```{r}
+# Step 1: Define variables for analysis
+variables_to_check <- c("tumor_size", "regional_node_examined", "regional_node_positive", "survival_months")
+
+# Step 2: Function to calculate Cook's Distance for a single variable
+check_influential_points <- function(data, variable) {
+  # Fit a simple linear regression model with the selected variable as predictor
+  formula <- as.formula(paste("survival_months ~", variable))
+  model <- lm(formula, data = data)
+  
+  # Calculate Cook's Distance
+  cooks_dist <- cooks.distance(model)
+  
+  # Identify outliers using boxplot stats
+  outliers <- which(data[[variable]] %in% boxplot.stats(data[[variable]])$out)
+  
+  # Identify influential points based on Cook's Distance threshold
+  threshold <- 4 / nrow(data)
+  influential_points <- which(cooks_dist > threshold)
+  
+  # Cross-check influential points with outliers
+  influential_outliers <- intersect(outliers, influential_points)
+  
+  # Summarize results
+  summary_table <- data.frame(
+    Row_Index = outliers,
+    Variable = variable,
+    Cook_Distance = cooks_dist[outliers],
+    Influential = ifelse(outliers %in% influential_outliers, "Yes", "No")
+  )
+  
+  # Add decision column
+  summary_table <- summary_table %>%
+    mutate(Decision = ifelse(Influential == "Yes", "Consider Removal", "Retain"))
+  
+  return(summary_table)
+}
+
+# Step 3: Apply the function to all variables and combine results
+all_results <- lapply(variables_to_check, function(var) check_influential_points(data_clean, var))
+combined_results <- bind_rows(all_results)
+
+# Step 4: Display the head of the combined summary table
+print("Head of Outliers and Influential Points Summary:")
+print(head(combined_results))
+
+# Step 5: Summary of Results
+total_outliers <- nrow(combined_results)
+influential_outliers <- sum(combined_results$Decision == "Consider Removal")
+
+cat("\nSummary of Results:\n")
+cat("Total Outliers Identified:", total_outliers, "\n")
+cat("Outliers Identified as Influential Points:", influential_outliers, "\n")
+
+if (influential_outliers > 0) {
+  cat("Some outliers are influential and should be reviewed for potential removal.\n")
+} else {
+  cat("No influential outliers detected. All points may be retained.\n")
+}
+
+
+```
+
+# Compare the models with & without influential outliers (TBX)
+```{r}
+# Model with influential points
+model_with <- lm(survival_months ~ ., data = data_clean)
+
+# Model without influential points
+data_clean_no_influential <- data_clean[-combined_results$Row_Index[combined_results$Decision == "Consider Removal"], ]
+model_without <- lm(survival_months ~ ., data = data_clean_no_influential)
+
+# Compare coefficients
+summary(model_with)
+summary(model_without)
+```
+
+# Check the multi-collinearity between numerical variables
+```{r}
+# Load required libraries
+library(graphics)
+
+# Select numerical variables (adjust to your dataset)
+numerical_vars <- data_clean[, c("tumor_size", "regional_node_examined", "regional_node_positive", "survival_months")]
+
+# Create a scatterplot matrix
+pairs(
+  numerical_vars,
+  panel = function(x, y) {
+    points(x, y, pch = 20, col = "blue", cex = 0.5)  # Add scatterplot points
+    abline(lm(y ~ x), col = "red", lwd = 2)          # Add red trend line
+  },
+  main = "Scatterplot Matrix with Trend Lines"
+)
+```
+
+
+
+# 接下来想要决定是否删除那些identify出来的influential points，但是我还没有想好具体的实施方法，然后很多类似check的方法或者像box-cox这种寻找最优transformation的方法都需要先fit一个lm model，但我觉得咱们目前没有fit lm model的任何步骤。
+```{r}
+# 提取系数
+coeff_with <- coef(model_with)
+coeff_without <- coef(model_without)
+
+# 计算变化百分比
+coeff_change <- (coeff_without - coeff_with) / coeff_with * 100
+
+# 创建表格
+coeff_table <- data.frame(
+  Variable = names(coeff_with),           # 变量名称
+  Coeff_With_Influential = coeff_with,    # 包含影响点的系数
+  Coeff_Without_Influential = coeff_without, # 删除影响点后的系数
+  Percent_Change = coeff_change           # 百分比变化
+)
+
+# 查看表格
+print(coeff_table)
+
+# 如果需要更美观的表格输出，使用 knitr 或 gt
+library(knitr)
+kable(coeff_table, digits = 2, caption = "Coefficient Changes with and without Influential Points")
+
+```
+
+
+
+
 
 
 ## optional: 数值变量分布： 可以绘制直方图或箱线图检查是否有极端值?
