@@ -1,0 +1,990 @@
+---
+title: "biosta_final_raw"
+output:
+  html_document: default
+  pdf_document: default
+date: "2024-12-20"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+### I. Data Manupulation & Exploration:
+
+#### Step_1: Loading necessary packages
+```{r}
+library(readr)
+library(dplyr)
+library(survival)
+library(caret)
+library(ggplot2)
+library(patchwork)
+library(kableExtra)
+library(minerva)
+library(stats)
+library(fitdistrplus)
+library(randomForestSRC)
+library(tidyverse)
+library(goftest)
+library(survival)
+library(stats)
+library(broom)
+library(car)
+library(graphics)
+library(MASS)
+library(e1071)
+library(pROC)
+library(pec)
+library(glmnet)
+library(ROSE) 
+library(caret)
+library(survminer)
+library(kableExtra)
+```
+
+
+
+
+#### Step_2: Data cleaning & Initial Survival Time Distribution Visualization
+```{r}
+data_clean = read_csv("/Users/boxiangtang/Desktop/Biosta_HW/Biosta_final/Project_2_data.csv") |>
+  rename(
+    Stage_6th = `6th Stage`) |>
+  janitor::clean_names() |>
+  
+mutate(status = as.numeric(status == "Dead"),
+       race = as.factor(race),
+       marital_status = as.factor(marital_status),
+       t_stage = as.factor(t_stage),
+       n_stage = as.factor(n_stage),
+       stage_6th = as.factor(stage_6th),
+       differentiate = as.factor(differentiate),
+       grade = as.factor(grade),
+       a_stage = as.factor(a_stage),
+       estrogen_status = as.factor(estrogen_status),
+       progesterone_status = as.factor(progesterone_status),
+       survival_months = log(survival_months) + 1
+  )
+
+
+# correct the col name: from "reginol_node_positive" to "regional_node_positive" (TBX)
+names(data_clean)[names(data_clean) == "reginol_node_positive"] <- "regional_node_positive"
+
+
+summary(data_clean)
+
+head(data_clean) |>
+  kable() |>
+  kable_styling(full_width = FALSE) %>%
+  scroll_box(width = "100%", height = "300px")
+
+
+summary_stats <- data_clean |> summary()
+print(summary_stats)
+
+data_clean |> ggplot(aes(x = survival_months, fill = status)) +
+  geom_histogram() +
+  labs(title = "Survival Time Distribution", x = "Months", y = "Count") +
+  theme_minimal()
+```
+
+
+
+
+#### Step_3: Variable Description Tables
+```{r}
+# Create a data frame for variable descriptions
+variable_descriptions <- data.frame(
+  Variable = c(
+    "Age", "Race", "Marital Status", "T Stage (Tumor)", "N Stage (Node)",
+    "Stage (6th Edition)", "Differentiate", "Grade", "A Stage", 
+    "Tumor Size", "Estrogen Status", "Progesterone Status",
+    "Regional Nodes Examined", "Regional Nodes Positive", 
+    "Survival Months", "Status"
+  ),
+  Description = c(
+    "Patient's age at the time of diagnosis or study enrollment.",
+    "Patient's racial identity: Black, White, Other.",
+    "Patient's marital status: Married, Single, Divorced, Separated, Widowed.",
+    "Tumor size and extent: T1 (≤2 cm), T2 (>2 cm but ≤5 cm), T3 (>5 cm), T4 (invasion into chest wall or skin).",
+    "Lymph node involvement: N1 (1–3 nodes), N2 (4–9 nodes), N3 (≥10 nodes).",
+    "Overall cancer stage: IIA, IIB, IIIA, IIIB, IIIC.",
+    "Tumor differentiation level: Well, Moderately, Poorly, Undifferentiated.",
+    "Tumor histological grade: Grade 1 (low), Grade 2 (moderate), Grade 3 (high), Grade IV (anaplastic).",
+    "Extent of cancer spread: Regional (local spread), Distant (metastasized).",
+    "Size of the tumor in millimeters.",
+    "Tumor's estrogen receptor status: Positive, Negative.",
+    "Tumor's progesterone receptor status: Positive, Negative.",
+    "Number of regional lymph nodes examined for cancer.",
+    "Number of regional lymph nodes found to be cancer-positive.",
+    "Number of months the patient survived after diagnosis or study enrollment.",
+    "Patient's status at the end of the study: Alive, Deceased."
+  )
+)
+
+# Display the table
+kable(variable_descriptions, col.names = c("Variable", "Description"), 
+      caption = "Variable Descriptions in the Breast Cancer Dataset", align = "l")
+```
+
+
+
+
+#### Step_4: Visualization for Categorical Variables
+```{r}
+
+# Ensure variables are converted to factor type
+convert_to_factor <- function(data, vars) {
+  data %>% mutate(across(all_of(vars), as.factor))
+}
+
+# Convert variables to factor type
+factor_vars <- c("race", "marital_status", "t_stage", "n_stage", 
+                 "stage_6th", "differentiate", "grade", "a_stage", 
+                 "estrogen_status", "progesterone_status", "status")
+data_clean <- convert_to_factor(data_clean, factor_vars)
+
+# Define a function to simplify long labels
+simplify_labels <- function(label, max_length = 12) {
+  ifelse(nchar(label) > max_length, paste0(substr(label, 1, max_length), "..."), label)
+}
+
+# Define a function to plot pie charts
+plot_pie <- function(data, var, title) {
+  counts <- data %>% count(!!sym(var)) %>% mutate(percent = round(n / sum(n) * 100, 1))
+  counts <- counts %>% mutate(label = paste0(simplify_labels(as.character(!!sym(var))), " (", percent, "%)"))
+  pie_data <- counts$n
+  labels <- counts$label
+  pie(pie_data, labels = labels, main = title, col = rainbow(length(pie_data)))
+}
+
+# Display in multiple pages
+# Page 1
+par(mfrow = c(2, 2), mar = c(4, 4, 2, 1))
+plot_pie(data_clean, "race", "Race")
+plot_pie(data_clean, "marital_status", "Marital Status")
+plot_pie(data_clean, "t_stage", "T Stage")
+plot_pie(data_clean, "n_stage", "N Stage")
+
+# Page 2
+par(mfrow = c(2, 2), mar = c(4, 4, 2, 1))
+plot_pie(data_clean, "stage_6th", "Stage (6th Edition)")
+plot_pie(data_clean, "differentiate", "Differentiate")
+plot_pie(data_clean, "grade", "Grade")
+plot_pie(data_clean, "a_stage", "A Stage")
+
+# Page 3
+par(mfrow = c(2, 2), mar = c(4, 4, 2, 1))
+plot_pie(data_clean, "estrogen_status", "Estrogen Status")
+plot_pie(data_clean, "progesterone_status", "Progesterone Status")
+plot_pie(data_clean, "status", "Status")
+
+```
+
+
+
+#### Step_5: Visualization for Numerical Variables
+```{r}
+# Select numeric variables and remove missing values
+num_vars <- c("age", "tumor_size", "regional_node_examined", "regional_node_positive", "survival_months")
+
+# Use base R to filter the required columns
+data_clean_numeric <- data_clean[, num_vars, drop = FALSE]
+
+# Remove rows with missing values
+data_clean_numeric <- na.omit(data_clean_numeric)
+
+# Plot boxplots for each numeric variable
+par(mfrow = c(2, 3)) # Set layout to 2 rows and 3 columns
+
+boxplot(data_clean_numeric$age,
+        main = "Age",
+        ylab = "Age",
+        col = "steelblue",
+        border = "black")
+
+boxplot(data_clean_numeric$tumor_size,
+        main = "Tumor Size",
+        ylab = "Tumor Size",
+        col = "salmon",
+        border = "black")
+
+boxplot(data_clean_numeric$regional_node_examined,
+        main = "Regional Nodes Examined",
+        ylab = "Regional Nodes Examined",
+        col = "lightgreen",
+        border = "black")
+
+boxplot(data_clean_numeric$regional_node_positive,
+        main = "Regional Nodes Positive",
+        ylab = "Regional Nodes Positive",
+        col = "plum",
+        border = "black")
+
+boxplot(data_clean_numeric$survival_months,
+        main = "Survival Months",
+        ylab = "Survival Months",
+        col = "gold",
+        border = "black")
+
+# Reset plot parameters to default
+par(mfrow = c(1, 1))
+
+```
+
+
+
+
+#### Step_6: Check Multi-collinearity between Different Kinds of Variable
+
+**Checking Multi-Collinearity Among Numerical Variables(Correlation Matrix & Variance Inflation Factor (VIF)) :**
+```{r}
+
+# Select numerical variables
+numeric_vars <- data_clean[, c("age", "tumor_size", "regional_node_examined", "regional_node_positive", "survival_months")]
+
+# Correlation matrix
+cor_matrix <- cor(numeric_vars, use = "complete.obs")
+print(cor_matrix)
+
+# Compute VIF
+numeric_model <- lm(survival_months ~ ., data = numeric_vars)
+vif_values <- vif(numeric_model)
+print(vif_values)
+
+
+# Select numerical variables (adjust to your dataset)
+numerical_vars <- data_clean[, c("age","tumor_size", "regional_node_examined", "regional_node_positive", "survival_months")]
+
+# Create a scatterplot matrix
+pairs(
+  numerical_vars,
+  panel = function(x, y) {
+    points(x, y, pch = 20, col = "blue", cex = 0.5)  # Add scatterplot points
+    abline(lm(y ~ x), col = "red", lwd = 2)          # Add red trend line
+  },
+  main = "Scatterplot Matrix with Trend Lines"
+)
+
+```
+
+
+**1. Numerical Variables**
+  - Covariance Matrix: Weak correlations between variables, with the highest at ~0.41 (regional_node_examined and regional_node_positive).
+  - VIF Results: All values <2, indicating no multicollinearity.
+  - Decision: Retain all numerical variables for now, as there are no strong correlations or multicollinearity issues.
+
+
+
+
+**Checking Multi-Collinearity Among Categorical Variables (Chi-Square Test of Independence):**
+```{r}
+# Select categorical variables
+categorical_vars <- data_clean[, c("race", 
+                                   "marital_status", 
+                                   "t_stage",
+                                   "n_stage",
+                                   "stage_6th",
+                                   "differentiate",
+                                   "estrogen_status",
+                                   "grade", 
+                                   "a_stage",
+                                   "progesterone_status",
+                                   "status")]
+
+# Chi-Square or Fisher's Exact Test function with enhancements
+perform_chi_square <- function(data, vars) {
+  results <- data.frame(Variable1 = character(), 
+                        Variable2 = character(), 
+                        Test_Type = character(), 
+                        Statistic = numeric(), 
+                        P_Value = numeric())
+  
+  for (i in 1:(length(vars) - 1)) {
+    for (j in (i + 1):length(vars)) {
+      var1 <- vars[i]
+      var2 <- vars[j]
+      table <- table(data[[var1]], data[[var2]])
+      
+      # Check if expected counts are too low for Chi-Square test
+      if (any(chisq.test(table, simulate.p.value = TRUE)$expected < 5)) {
+        # Use Fisher's Exact Test with Monte Carlo simulation if needed
+        test <- fisher.test(table, simulate.p.value = TRUE, B = 10000)
+        test_type <- "Fisher's Exact Test (Monte Carlo)"
+        statistic <- NA  # Fisher's test does not produce a Chi-Square statistic
+      } else {
+        # Use Chi-Square Test
+        test <- suppressWarnings(chisq.test(table))  # Suppress warnings for small expected counts
+        test_type <- "Chi-Square Test"
+        statistic <- test$statistic
+      }
+      
+      # Append results
+      results <- rbind(results, data.frame(Variable1 = var1, 
+                                           Variable2 = var2, 
+                                           Test_Type = test_type, 
+                                           Statistic = statistic, 
+                                           P_Value = test$p.value))
+    }
+  }
+  
+  return(results)
+}
+
+# Run the modified function
+chi_square_results <- perform_chi_square(data_clean, colnames(categorical_vars))
+
+# Display all results
+print(chi_square_results)
+
+# Filter significant results
+significant_results <- chi_square_results %>%
+  filter(P_Value < 0.05)
+
+# Print significant results
+print("Significant Associations:")
+print(significant_results)
+
+
+```
+
+
+**2. Categorical Variables**
+  - Significant Relationships: Key pairs like race and marital_status, t_stage and n_stage, and progesterone_status and status show strong associations (p-value < 0.05).
+  - Decision: Retain all significant categorical variables. Consider redundancy (e.g., between t_stage and n_stage) in further analysis.
+
+
+
+
+**Checking Multi-Collinearity Between Numerical and Categorical Variables (ANOVA): **
+```{r}
+perform_anova <- function(data, numeric_vars, categorical_vars) {
+  results <- data.frame(Numeric_Var = character(), Categorical_Var = character(), P_Value = numeric())
+  for (num_var in numeric_vars) {
+    for (cat_var in categorical_vars) {
+      formula <- as.formula(paste(num_var, "~", cat_var))
+      anova_result <- anova(lm(formula, data = data))
+      results <- rbind(results, data.frame(Numeric_Var = num_var, Categorical_Var = cat_var, P_Value = anova_result$`Pr(>F)`[1]))
+    }
+  }
+  results
+}
+
+numeric_vars <- c("age", "tumor_size", "regional_node_examined", "regional_node_positive", "survival_months")
+
+categorical_vars <- c("race", 
+                      "marital_status", 
+                      "t_stage",
+                      "n_stage",
+                      'stage_6th',
+                      "differentiate",
+                      "estrogen_status",
+                      "grade", 
+                      "a_stage",
+                      "progesterone_status",
+                      "status")
+
+anova_results <- perform_anova(data_clean, numeric_vars, categorical_vars)
+print(anova_results)
+
+```
+
+
+**3. Numerical × Categorical Interactions (ANOVA Results):**
+  - Significant interactions observed between numerical and categorical variables:
+  - Examples include age with race and t_stage, tumor_size with t_stage and status, and survival_months with status.
+  - Decision: Include key interaction terms like age:t_stage, tumor_size:status, and survival_months:progesterone_status to improve model fit.
+  
+
+
+
+#### Step_7: Variable Transformation Section
+
+**For all numerical variables:**
+```{r}
+
+
+# Visualize current distributions
+numerical_vars <- c("age", "tumor_size", "regional_node_examined", "regional_node_positive", "survival_months")
+
+# Apply transformations for skewed variables
+data_clean <- data_clean %>%
+  mutate(
+    # Log transformation for variables with right skewness
+    tumor_size_log = log(tumor_size + 1),
+    regional_node_examined_log = log(regional_node_examined + 1),
+    regional_node_positive_log = log(regional_node_positive + 1),
+    survival_months_log = log(survival_months + 1),
+    
+    # Scale age (if necessary, based on its distribution)
+    age_scaled = scale(age)
+  )
+
+# Create box plots for transformed variables
+par(mfrow = c(2, 3)) # Set plotting layout
+boxplot(data_clean$tumor_size_log, main = "Log-Transformed Tumor Size", col = "red")
+boxplot(data_clean$regional_node_examined_log, main = "Log-Transformed Regional Nodes Examined", col = "green")
+boxplot(data_clean$regional_node_positive_log, main = "Log-Transformed Regional Nodes Positive", col = "purple")
+boxplot(data_clean$survival_months_log, main = "Log-Transformed Survival Months", col = "yellow")
+boxplot(data_clean$age_scaled, main = "Scaled Age", col = "blue")
+```
+
+
+
+**Further improve for survival_months (Box-Cox):**
+```{r}
+# Box-Cox transformation
+boxcox_result <- boxcox(lm(survival_months ~ 1, data = data_clean), lambda = seq(-2, 2, 0.1))
+
+# Find the best lambda
+best_lambda <- boxcox_result$x[which.max(boxcox_result$y)]
+cat("Best lambda:", best_lambda, "\n")
+
+# Apply the Box-Cox transformation
+data_clean$survival_months_boxcox <- (data_clean$survival_months^best_lambda - 1) / best_lambda
+
+# Check skewness before and after transformation
+skewness_before <- skewness(data_clean$survival_months, na.rm = TRUE)
+skewness_after <- skewness(data_clean$survival_months_boxcox, na.rm = TRUE)
+
+cat("Skewness Before Transformation:", skewness_before, "\n")
+cat("Skewness After Transformation:", skewness_after, "\n")
+
+# Boxplot comparison
+par(mfrow = c(1, 2))
+boxplot(data_clean$survival_months, main = "Original Survival Months", col = "yellow")
+boxplot(data_clean$survival_months_boxcox, main = "Box-Cox Transformed Survival Months", col = "blue")
+```
+
+
+
+#### Step_8: Identifying Influencial Outliers
+
+```{r}
+# Ensure your data is clean and transformed (based on previous steps)
+data_clean <- data_clean %>%
+  mutate(
+    survival_months_boxcox = ifelse(is.na(survival_months_boxcox), survival_months, survival_months_boxcox)
+  )
+
+# Step 1: Fit a preliminary GLM for death risk prediction
+# Assuming "status" is your binary outcome variable (1 = death, 0 = survival)
+# Use a logit link function as we are predicting probabilities
+glm_model <- glm(status ~ tumor_size_log + regional_node_examined_log + regional_node_positive_log + 
+                   age_scaled + survival_months_boxcox, 
+                 data = data_clean, 
+                 family = binomial(link = "logit"))
+
+# Step 2: Diagnostics for Influential Points
+# Leverage values (hat values)
+leverage <- hatvalues(glm_model)
+# Standardized residuals
+std_residuals <- rstandard(glm_model)
+# Cook's Distance
+cooks_distance <- cooks.distance(glm_model)
+
+# Add diagnostics back to the dataset
+data_clean <- data_clean %>%
+  mutate(
+    leverage = leverage,
+    std_residuals = std_residuals,
+    cooks_distance = cooks_distance
+  )
+
+# Step 3: Visualize Diagnostics
+# Set thresholds for diagnostics
+leverage_threshold <- 2 * (ncol(data_clean) - 1) / nrow(data_clean) # Rule of thumb
+cooks_threshold <- 4 / nrow(data_clean) # Rule of thumb
+
+# Plot Cook's Distance
+plot(cooks_distance, type = "h", main = "Cook's Distance", ylab = "Cook's Distance", xlab = "Index")
+abline(h = cooks_threshold, col = "red", lty = 2)
+
+# Plot Leverage
+plot(leverage, type = "h", main = "Leverage Values", ylab = "Leverage", xlab = "Index")
+abline(h = leverage_threshold, col = "blue", lty = 2)
+
+# Plot Standardized Residuals
+plot(std_residuals, type = "h", main = "Standardized Residuals", ylab = "Standardized Residuals", xlab = "Index")
+abline(h = c(-3, 3), col = "purple", lty = 2)
+
+# Step 4: Identify Potential Influential Points
+influential_points <- data_clean %>%
+  filter(leverage > leverage_threshold | cooks_distance > cooks_threshold | abs(std_residuals) > 3)
+
+# Step 5: Output Influential Points
+print("Potential Influential Points:")
+print(influential_points)
+
+
+# Summary
+cat("Total influential points detected:", nrow(influential_points), "\n")
+
+```
+
+
+The results indicate most data points have minimal impact, but 331 potential influential points warrant further attention. Cook's Distance, leverage values, and standardized residuals highlight some points that might significantly influence the model. The next steps involve extracting these points, analyzing their distribution and origin, and deciding whether to remove errors or adjust the model to mitigate their impact. Finally, refit the model to ensure robustness.
+
+
+```{r}
+# Step 6: Investigate Influential Points
+# Extract and analyze influential points
+influential_points_data <- data_clean %>%
+  filter(leverage > leverage_threshold |
+         cooks_distance > cooks_threshold |
+         abs(std_residuals) > 3)
+
+# View summary of influential points
+summary(influential_points_data)
+
+# Visualize distributions for key numeric variables
+# Specify the variables of interest
+key_numeric_vars <- c("tumor_size_log", "regional_node_examined_log", 
+                      "regional_node_positive_log", "survival_months_boxcox")
+
+# Set up the plotting layout
+par(mfrow = c(2, 2))  # Arrange plots in a 2x2 grid
+for (var in key_numeric_vars) {
+  if (var %in% colnames(influential_points_data)) {
+    hist(influential_points_data[[var]], 
+         main = paste("Distribution of", var, "(Influential Points)"),
+         xlab = var, col = "lightblue", border = "white")
+  }
+}
+
+# Reset plotting layout to default
+par(mfrow = c(1, 1))
+
+# Step 7: Handle Influential Points
+# Exclude influential points (basic cleaning for modeling preparation)
+data_clean_no_outliers <- data_clean %>%
+  filter(!(leverage > leverage_threshold |
+           cooks_distance > cooks_threshold |
+           abs(std_residuals) > 3))
+
+# Refit the GLM model to ensure data is ready for modeling
+glm_model_updated <- glm(status ~ tumor_size_log + regional_node_examined_log +
+                         regional_node_positive_log + age_scaled +
+                         survival_months_boxcox,
+                         data = data_clean_no_outliers,
+                         family = binomial(link = "logit"))
+
+# Evaluate the updated model
+cat("Summary of the updated model:\n")
+summary(glm_model_updated)
+
+# Diagnostic plots (optional)
+plot(glm_model_updated, which = 4)  # Cook's Distance
+plot(glm_model_updated, which = 1)  # Residuals vs Fitted
+
+
+# Final Message
+cat("Process completed. Key numeric variables visualized, updated model fitted, and cleaned dataset saved.\n")
+
+```
+
+**Comments on Outputs：**
+  - The cleaned model performs well, with all variables being statistically significant. The residual deviance has significantly decreased (663.3), and the AIC value (675.3) indicates a good balance between model fit and complexity. Diagnostic plots confirm that there are no significant high-influence points remaining, and the distributions of key variables are reasonable without severe outliers or biases, demonstrating the effectiveness of the data cleaning process.
+
+**Final Decision：**
+  - We have decided to remove the 300+ influential outliers identified earlier and proceed with the cleaned dataset data_clean_no_outliers as the foundation for modeling. The data quality is sufficient, marking the conclusion of the data exploration phase and the transition to the modeling stage.
+
+
+
+
+### II. Modeling
+
+
+#### Step_1: Logistic Regression Model with Interaction Terms and Optimization
+```{r}
+# Ensure data balance
+# Split data based on status
+data_majority <- data_clean_no_outliers %>% filter(status == 0)
+data_minority <- data_clean_no_outliers %>% filter(status == 1)
+set.seed(123)
+data_majority_sample <- data_majority %>% sample_n(min(nrow(data_minority) * 2, nrow(data_majority)))
+data_balanced <- bind_rows(data_majority_sample, data_minority)
+
+# Standardize numerical variables
+data_balanced$tumor_size_log <- scale(data_balanced$tumor_size_log)
+data_balanced$regional_node_examined_log <- scale(data_balanced$regional_node_examined_log)
+data_balanced$regional_node_positive_log <- scale(data_balanced$regional_node_positive_log)
+data_balanced$survival_months_boxcox <- scale(data_balanced$survival_months_boxcox)
+data_balanced$age_scaled <- scale(data_balanced$age_scaled)
+
+# Split data into training and testing sets
+set.seed(123)
+trainIndex <- createDataPartition(data_balanced$status, p = 0.8, list = FALSE)
+train_data <- data_balanced[trainIndex, ]
+test_data <- data_balanced[-trainIndex, ]
+
+# Prepare training data for Lasso regression
+x_train <- model.matrix(status ~ tumor_size_log + regional_node_examined_log +
+                        regional_node_positive_log + survival_months_boxcox +
+                        age_scaled + race + marital_status + t_stage + n_stage +
+                        stage_6th + differentiate + estrogen_status + grade +
+                        a_stage + progesterone_status + age_scaled:t_stage +
+                        tumor_size_log:status + survival_months_boxcox:progesterone_status,
+                        data = train_data)[, -1]
+y_train <- train_data$status
+
+# Perform Lasso regression
+lasso_model <- cv.glmnet(x_train, y_train, alpha = 1, family = "binomial")
+best_lambda <- lasso_model$lambda.min
+model_lasso <- glmnet(x_train, y_train, alpha = 1, lambda = best_lambda, family = "binomial")
+
+# Extract coefficients from the Lasso model
+coef_lasso <- coef(model_lasso, s = best_lambda)
+selected_variables_df <- as.data.frame(as.matrix(coef_lasso))
+colnames(selected_variables_df) <- "Coefficient"
+selected_variables_df <- selected_variables_df[selected_variables_df$Coefficient != 0, , drop = FALSE]
+selected_variables_df <- cbind(Variable = rownames(selected_variables_df), selected_variables_df)
+rownames(selected_variables_df) <- NULL
+print("Selected variables by Lasso model:")
+
+
+# Present coefficients in a table format
+knitr::kable(selected_variables_df, caption = "Coefficients of the Optimal Lasso Model")
+
+# Validate the model on the testing set
+x_test <- model.matrix(status ~ tumor_size_log + regional_node_examined_log +
+                       regional_node_positive_log + survival_months_boxcox +
+                       age_scaled + race + marital_status + t_stage + n_stage +
+                       stage_6th + differentiate + estrogen_status + grade +
+                       a_stage + progesterone_status + age_scaled:t_stage +
+                       tumor_size_log:status + survival_months_boxcox:progesterone_status,
+                       data = test_data)[, -1]
+y_test <- test_data$status
+test_predictions <- as.numeric(predict(model_lasso, newx = x_test, type = "response"))
+
+# Calculate AUC on the testing set
+roc_curve_test <- roc(y_test, test_predictions)
+auc_test <- auc(roc_curve_test)
+print(paste("Test AUC:", auc_test))
+plot(roc_curve_test, main = "ROC Curve on Test Data")
+
+# Calculate AUC on the training set
+train_predictions <- as.numeric(predict(model_lasso, newx = x_train, type = "response"))
+roc_curve_train <- roc(y_train, train_predictions)
+auc_train <- auc(roc_curve_train)
+print(paste("Train AUC:", auc_train))
+plot(roc_curve_train, main = "ROC Curve on Train Data")
+
+```
+
+
+#### Step_2: Cox Proportional Hazards Model
+```{r}
+
+# Data preparation
+cox_data <- data_clean_no_outliers
+cox_data$status <- as.numeric(cox_data$status)  # Cox model requires status to be numeric (0: alive, 1: dead)
+
+# Define the Cox model formula, including main effects and interaction terms
+cox_formula <- as.formula("Surv(survival_months_boxcox, status) ~ 
+                           tumor_size_log + regional_node_examined_log +
+                           regional_node_positive_log + age_scaled + race + 
+                           marital_status + t_stage + n_stage + stage_6th +
+                           differentiate + estrogen_status + grade + a_stage +
+                           progesterone_status + age_scaled:t_stage + 
+                           tumor_size_log:status + survival_months_boxcox:progesterone_status")
+
+# Fit the Cox proportional hazards model
+cox_model <- coxph(cox_formula, data = cox_data)
+
+# Output model results
+summary(cox_model)
+
+# Check model performance - calculate C-index
+cindex <- summary(cox_model)$concordance[1]
+print(paste("C-index:", cindex))
+
+# Compare model prediction performance
+# Predictions from the logistic model (assuming test_predictions are generated)
+roc_logistic <- roc(y_test, test_predictions)
+auc_logistic <- auc(roc_logistic)
+print(paste("Logistic Test AUC:", auc_logistic))
+
+# Risk scores from the Cox model
+cox_risk <- predict(cox_model, type = "risk")
+roc_cox <- roc(cox_data$status, cox_risk)
+auc_cox <- auc(roc_cox)
+print(paste("Cox Model AUC:", auc_cox))
+
+# Output ROC curve comparison
+plot(roc_logistic, main = "ROC Curves Comparison", col = "blue", legacy.axes = TRUE)
+lines(roc_cox, col = "red")
+legend("bottomright", legend = c("Logistic", "Cox"), col = c("blue", "red"), lwd = 2)
+
+# Extract coefficients from the Cox model
+cox_summary <- summary(cox_model)
+coefficients <- as.data.frame(cox_summary$coefficients)
+colnames(coefficients) <- c("Coefficient", "Exp(Coefficient)", "Standard Error", "z-value", "p-value")
+
+# Create and visualize the table for all coefficients
+coefficients_table <- coefficients %>%
+  rownames_to_column(var = "Variable") %>%
+  kable("html", caption = "Cox Model Coefficients") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = FALSE)
+
+# Show the table for all coefficients
+coefficients_table
+
+# Create and visualize the table for significant coefficients (p-value < 0.05)
+significant_coefficients <- coefficients %>%
+  filter(`p-value` < 0.05) %>%
+  rownames_to_column(var = "Variable") %>%
+  kable("html", caption = "Significant Cox Model Coefficients") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = FALSE)
+
+# Show the table for significant coefficients
+significant_coefficients
+
+
+```
+
+
+
+
+
+#### Step_4: Model Fairness Evaluation
+```{r}
+# Calculate model performance for different racial groups
+# Logistic model - Compute AUC by race
+roc_logistic_white <- roc(
+  test_data %>% filter(race == "White") %>% pull(status),
+  test_predictions[test_data$race == "White"]
+)
+
+roc_logistic_black <- roc(
+  test_data %>% filter(race == "Black") %>% pull(status),
+  test_predictions[test_data$race == "Black"]
+)
+
+# Output AUC
+auc_logistic_white <- auc(roc_logistic_white)
+auc_logistic_black <- auc(roc_logistic_black)
+
+print(paste("Logistic Test AUC for White:", auc_logistic_white))
+print(paste("Logistic Test AUC for Black:", auc_logistic_black))
+
+# Cox model - Compute AUC by race
+cox_risk_white <- predict(
+  cox_model,
+  newdata = cox_data %>% filter(race == "White"),
+  type = "risk"
+)
+cox_risk_black <- predict(
+  cox_model,
+  newdata = cox_data %>% filter(race == "Black"),
+  type = "risk"
+)
+
+# ROC curve - White group
+roc_cox_white <- roc(
+  cox_data %>% filter(race == "White") %>% pull(status),
+  cox_risk_white
+)
+
+# ROC curve - Black group
+roc_cox_black <- roc(
+  cox_data %>% filter(race == "Black") %>% pull(status),
+  cox_risk_black
+)
+
+# Output AUC
+auc_cox_white <- auc(roc_cox_white)
+auc_cox_black <- auc(roc_cox_black)
+
+print(paste("Cox Model AUC for White:", auc_cox_white))
+print(paste("Cox Model AUC for Black:", auc_cox_black))
+
+# Plot ROC curves by race for Logistic model
+plot(roc_logistic_white, col = "blue", legacy.axes = TRUE, main = "ROC by Race (Logistic)")
+lines(roc_logistic_black, col = "red")
+legend("bottomright", legend = c("White", "Black"), col = c("blue", "red"), lwd = 2)
+
+# Plot ROC curves by race for Cox model
+plot(roc_cox_white, col = "blue", legacy.axes = TRUE, main = "ROC by Race (Cox)")
+lines(roc_cox_black, col = "red")
+legend("bottomright", legend = c("White", "Black"), col = c("blue", "red"), lwd = 2)
+
+```
+
+
+**Comments_1:**
+  - The figures demonstrate the predictive performance of Logistic and Cox models across racial groups (White and Black). For the Logistic model, the AUC is 0.9904 for the White group and 0.9821 for the Black group. For the Cox model, the AUC is 0.9716 for the White group and 0.9654 for the Black group. In the ROC curves, the White group's curve slightly outperforms the Black group's curve, indicating a minor performance difference.
+  
+**Comments_2:**
+  - Both the Logistic and Cox models exhibit high predictive performance across racial groups, with slightly better results for the White group compared to the Black group, indicating minor unfairness. Although the differences are small, the potential bias against minority groups should be addressed, and further optimization is recommended to enhance fairness.
+  
+
+
+
+#### Step_5: Model Feature Importance Evaluation
+```{r}
+# Convert sparse matrix to a regular matrix
+lasso_importance <- as.matrix(abs(coef_lasso))
+
+# Convert matrix to a data frame
+lasso_importance <- as.data.frame(lasso_importance)
+
+# Add variable names as a column
+lasso_importance$Variable <- rownames(lasso_importance)
+
+# Rename columns for clarity
+colnames(lasso_importance) <- c("Importance", "Variable")
+
+# Reorder by importance
+lasso_importance <- lasso_importance[order(-lasso_importance$Importance), ]
+
+# Display the feature importance table
+knitr::kable(lasso_importance, caption = "Feature Importance for Logistic Model")
+```
+
+
+
+#### Step_6: Model Calibration and Diagnostics
+
+**Part_1: COX**
+```{r}
+# Step 1: Check numeric variables for zero variance
+print("Checking numeric variables for zero variance:")
+zero_variance_vars <- apply(cox_data, 2, function(x) if (is.numeric(x)) var(x, na.rm = TRUE) == 0)
+print("Variables with zero variance:")
+print(names(zero_variance_vars[zero_variance_vars]))
+
+# Step 2: Check categorical variables for sparse levels
+print("Checking categorical variables for sparse levels:")
+sparse_levels <- lapply(cox_data, function(x) if (is.factor(x)) table(x))
+print("Sparse levels in categorical variables:")
+print(sparse_levels)
+
+# Step 3: Perform individual Schoenfeld residual diagnostics to identify problematic variables
+print("Performing individual Schoenfeld residual diagnostics:")
+problematic_vars <- c()
+for (var in colnames(cox_model$x)) {
+  tryCatch({
+    single_var_test <- cox.zph(cox_model, transform = var)
+    print(paste("Schoenfeld test for variable:", var))
+    print(single_var_test)
+  }, error = function(e) {
+    print(paste("Error for variable:", var, "-", e$message))
+    problematic_vars <<- c(problematic_vars, var)  # Collect problematic variables
+  })
+}
+print("Problematic variables identified in Schoenfeld residual diagnostics:")
+print(problematic_vars)
+
+# Step 4: Adjust the Schoenfeld residual diagnostics for all variables
+# Option 1: Use a different transformation (e.g., rank transformation)
+print("Performing Schoenfeld residual diagnostics with rank transformation:")
+tryCatch({
+  schoenfeld_test_rank <- cox.zph(cox_model, transform = "rank")
+  print("Schoenfeld test results with rank transformation:")
+  print(schoenfeld_test_rank)
+  plot(schoenfeld_test_rank, main = "Schoenfeld Residuals with Rank Transformation")
+}, error = function(e) {
+  print(paste("Error in Schoenfeld test with rank transformation:", e$message))
+})
+
+# Step 5: If specific problematic variables are identified, exclude them from diagnostics
+if (length(problematic_vars) > 0) {
+  print("Excluding problematic variables from diagnostics:")
+  reduced_cox_formula <- as.formula(paste("Surv(survival_months_boxcox, status) ~ ",
+                                          paste(setdiff(colnames(cox_model$x), problematic_vars), collapse = " + ")))
+  reduced_cox_model <- coxph(reduced_cox_formula, data = cox_data)
+
+  # Perform Schoenfeld residual diagnostics on reduced model
+  print("Performing Schoenfeld residual diagnostics on reduced model:")
+  tryCatch({
+    schoenfeld_test_reduced <- cox.zph(reduced_cox_model)
+    print("Schoenfeld test results for reduced model:")
+    print(schoenfeld_test_reduced)
+    plot(schoenfeld_test_reduced, main = "Schoenfeld Residuals for Reduced Model")
+  }, error = function(e) {
+    print(paste("Error in Schoenfeld test for reduced model:", e$message))
+  })
+} else {
+  print("No problematic variables detected for exclusion.")
+}
+
+```
+
+
+**Part_2: Logistic Models**
+```{r}
+
+# Logistic Model Manual Calibration Curve (Fixed Version)
+
+# Step 1: Ensure status is numeric (convert if necessary)
+test_data <- test_data %>%
+  mutate(status = as.numeric(as.character(status)))  # Convert status to numeric if not already
+
+# Step 2: Add predicted probabilities and bin into deciles
+test_data <- test_data %>%
+  mutate(predicted_prob = test_predictions) %>%  # Add predicted probabilities
+  mutate(decile = ntile(predicted_prob, 10))  # Bin into 10 deciles
+
+# Step 3: Calculate mean predicted and observed probabilities for each decile
+library(dplyr)
+calibration_data <- test_data %>%
+  group_by(decile) %>%
+  summarise(
+    mean_predicted = mean(predicted_prob, na.rm = TRUE),  # Average predicted probability
+    mean_observed = mean(status, na.rm = TRUE)  # Average observed status (0/1)
+  )
+
+# Step 4: Remove rows with NA (if any) from calibration data
+calibration_data <- calibration_data %>%
+  filter(!is.na(mean_predicted) & !is.na(mean_observed))
+
+# Step 5: Plot calibration curve
+library(ggplot2)
+ggplot(calibration_data, aes(x = mean_predicted, y = mean_observed)) +
+  geom_point(size = 3, color = "blue") +  # Points for observed vs predicted
+  geom_line(color = "blue", size = 1) +   # Line connecting the points
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +  # Perfect calibration line
+  labs(
+    x = "Mean Predicted Probability",
+    y = "Mean Observed Probability",
+    title = "Calibration Curve for Logistic Regression"
+  ) +
+  theme_minimal()
+
+
+```
+
+
+
+
+
+#### Step_7: Report Supplement and Results Summary
+
+```{r}
+# Descriptive Summary Table
+summary_stats <- data_clean_no_outliers %>%
+  summarise(
+    Age = list(summary(age)),
+    TumorSize = list(summary(tumor_size_log)),
+    SurvivalMonths = list(summary(survival_months_boxcox)),
+    NodeExamined = list(summary(regional_node_examined_log))
+  )
+
+knitr::kable(summary_stats, caption = "Summary Statistics for Key Variables")
+
+# Model Results Summary Table
+result_summary <- data.frame(
+  Model = c("Logistic Regression", "Cox Proportional Hazards"),
+  Train_AUC = c(auc_train, NA),
+  Test_AUC = c(auc_test, auc_cox),
+  Significant_Features = c(nrow(selected_variables_df), nrow(significant_coefficients))
+)
+
+knitr::kable(result_summary, caption = "Summary of Model Results")
+
+```
+
