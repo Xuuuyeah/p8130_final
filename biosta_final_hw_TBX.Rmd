@@ -1,8 +1,10 @@
 ---
 title: "biosta_final_raw"
 output:
+  pdf_document:
+    latex_engine: xelatex
   html_document: default
-  pdf_document: default
+always_allow_html: true
 date: "2024-12-20"
 ---
 
@@ -12,10 +14,49 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 
+
+Modeling Survival Outcomes in Breast Cancer
+Xiaoni Xu, Yiran Xu, Erin Ge, Boxiang Tang
+
+Abstract
+    Breast cancer is a leading cause of cancer-related mortality among women, making it essential to understand survival predictors and develop related prediction models. This study analyzed survival data from 4,024 breast cancer patients using demographic, clinical, and pathological variables. After data preprocessing, survival models, including log-logistic, Cox proportional hazards, Weibull, and lognormal models, were compared. The log-logistic model was identified as the best fit, with the lowest Akaike Information Criterion, outlining significant predictors such as age, tumor size, hormone receptor status, nodal involvement, and tumor stage. The findings suggest that the log-logistic model offers a suitable framework for understanding survival outcomes for breast cancer patients.
+
+Introduction
+    Breast cancer is one of the most prevalent forms of cancer globally and is among the leading causes of cancer-related mortality among women (Harbeck et al. 2019). Understanding the factors that influence survival outcomes and accurately predicting the risk are critical for improving patient care and clinical treatment. This report analyzes a dataset from a prospective study on breast cancer patients, aiming to explore predictors of survival and assess the fairness and performance of predictive models. 
+    The analysis begins with a comprehensive exploration of the dataset, including descriptive statistics and visualizations to understand the distribution and relationships between variables. We are able to find that the log-logistic model is superior compared to the Cox proportional hazards model. The report also addresses potential challenges, such as multicollinearity, model assumptions, and influential observations, ensuring robust conclusions.
+
+Methods
+    This study utilizes a dataset from a prospective study on breast cancer patients. The dataset includes detailed baseline information about demographic, clinical, and pathological features. Table 1 provides an overview of the variables included in the study, along with their descriptions and categories.
+    The analysis began with comprehensive data cleaning and processing in R. Variables were renamed for consistency, categorical variables were converted to factors, and transformations were applied where appropriate to improve interpretability and address potential skewness. Exploratory data analysis (EDA) was conducted to understand the distributions and relationships within the dataset. Summary statistics were computed for all variables, and visualizations such as histograms and bar plots were created. Side-by-side histograms for categorical variables, such as Race, Marital Status, T Stage, and N Stage, showed their frequency distributions, and numerical variables like Age, Tumor Size, and Regional Nodes Examined were visualized using histograms to identify patterns or potential outliers (Figure 1).  Figure 2 shows the distributions of log-transformed variables in order to stabilize variance.
+    Outliers and influential points in the dataset were identified and removed to ensure the robustness of the regression model. Cook’s Distance, a metric in regression analysis, was applied to detect influential observations. Cook’s Distance evaluates both the leverage of a data point (its distance from the mean of the predictors) and its residual (the deviation of the observation from the fitted model). By combining these two measures, Cook’s Distance highlights observations that disproportionately affect the model's estimates. To identify influential points, Cook’s Distance was computed for each observation in the dataset using the fitted logistic regression model. Observations with a Cook’s Distance exceeding the threshold of 4/n, where n is the total number of observations, were flagged as influential. A diagnostic plot was generated to visually inspect Cook’s Distance values, with points above the threshold marked in red for clarity (Figure 3). Observations identified as influential were removed from the dataset before refitting the model. 
+    To assess multicollinearity among numerical variables, Variance Inflation Factor (VIF) was calculated. Multicollinearity occurs when two or more predictor variables are highly correlated, leading to unstable regression coefficients. VIF quantifies the extent of multicollinearity, with higher values indicating greater correlation. A VIF value above 5 is generally considered a sign of significant multicollinearity. The numerical variables analyzed included age, log-transformed tumor size, log-transformed number of nodes examined, the number of regional nodes positive, and survival months. A linear regression model was fitted using these variables, and VIF values were calculated for each predictor. The results showed that all VIF values were below the threshold of 5 (Table 2). This indicates that no significant multicollinearity was present among the numerical variables. 
+
+Results
+  For the original data, the analysis was conducted on a dataset containing 4,024 patients with 16 variables, representing demographic, clinical, and tumor-specific characteristics. The age of patients ranged from 30 to 69 years, with a median age of 54. Tumor size varied widely, from 1 mm to 140 mm, with an average size of 30.47 mm. The majority of patients (84.8%) identified as White, with Black and Other racial categories accounting for 7.2% and 8.0%, respectively. Most patients were married (65.7%), followed by being single (15.3%). Tumor staging variables (T stage and N stage) highlighted that 79% of patients had early-stage tumors classified as T1 or T2, while lymph node involvement (regional_node_positive) ranged from 1 to 46, with a mean of 4.16.
+    The compatibility of the survival data with Weibull and lognormal parametric models was evaluated to determine the most appropriate distribution for the survival analysis. The Weibull model is a commonly used parametric survival model. The Anderson-Darling test was employed to assess the goodness-of-fit of the Weibull distribution to the data. The test produced an A_n​ statistic of 41.662 with a p-value of 1.636×10^−7, strongly rejecting the null hypothesis that the data follow a Weibull distribution. Similarly, a lognormal model was fitted to the survival data, and four plots were generated for both the lognormal and Weibull models to visually inspect the fit: Empirical and Theoretical Densities Plot, Q-Q Plot, Empirical and Theoretical CDFs plot, and P-P Plot (Figure 4). For both models, significant deviations from the diagonal in the Q-Q plot, suggesting poor fit and  that the survival data are not well modeled by either the Weibull or the lognormal distribution.
+    The log-logistic model, a parametric survival model that assumes survival times follow a log-logistic distribution, was fitted to the data using the survival months and status as the response variable. The model included all available predictors, and the fitting process yielded a log-likelihood of -954.3, significantly improved from the intercept-only model (-1295), with a chi-squared statistic of 681.29 (p-value < 8×10^−125). This indicates that the model provides a better fit to the data compared to the null model. Predictors with p > 0.05 and non-significant effects were excluded, resulting in an updated model formula containing only significant variables. The model output is shown in Figure 5.
+    The Cox proportional hazards model, a semi-parametric approach that does not assume a specific form for the baseline hazard, was fitted to the survival data. The global likelihood ratio test, Wald test, and score (logrank) test all yielded statistically significant results (p < 2×10^−16), indicating that the model as a whole is predictive of survival. The concordance index (C=0.868) reflects strong predictive discrimination, suggesting that the model effectively distinguishes between high- and low-risk individuals. The model output is shown in Figure 6.
+    The Akaike Information Criterion (AIC) was used to compare the relative quality of the log-logistic and Cox proportional hazards models. AIC evaluates the trade-off between goodness-of-fit and model complexity, with lower values indicating a better balance. The AIC for the log-logistic model was 1970.695, whereas the AIC for the Cox model was 4275.727. This significant difference suggests that the log-logistic model provides a more parsimonious fit to the data. The log-logistic model, therefore, is preferred based on the AIC criterion for modeling survival in this dataset.
+
+Conclusions and Discussion
+    This study analyzed survival data from breast cancer patients using various parametric and semi-parametric models, focusing on identifying key predictors and assessing the performance of survival models. The results provide valuable insights into the demographic, clinical, and pathological factors influencing survival outcomes, while also highlighting the relative strengths of different modeling approaches. The log-logistic model emerged as the most suitable for this dataset, as indicated by its lower Akaike Information Criterion (AIC) value compared to the Cox proportional hazards model. Key predictors identified, such as age, tumor size, hormone receptor status, nodal involvement, and tumor stage, align with established clinical understanding of breast cancer. The study also explored Weibull and lognormal models, which were found to be incompatible with the data based on goodness-of-fit tests and diagnostic plots. These findings underscore the importance of evaluating multiple modeling approaches and considering their assumptions and limitations in survival analysis. The findings of this study provide a foundation for improving risk prediction and personalized treatment strategies, emphasizing the essential role of statistical analysis in breast cancer research.
+
+Group Member Contributions
+Xiaoni Xu rewrote the entire R code of the project; the preliminary models were not used, and only histograms were shown for data visualization. Xiaoni Xu also generated all tables and figures of the report along with drafting and finishing all written sections of the report. Yiran Xu drafted the codes for the preliminary models, Weibull and lognormal models, and data cleaning; Erin Ge followed up with covariate further code editing including model output and outliers detection, as well as interpretation. Boxiang Tang built upon the preliminary modeling work (Logistic & Cox models) conducted by Xiaoni, adding a complete data manipulation and data exploration section (including a total 8 steps). Additionally, he enhanced the modeling sectionsetion  (with a total of 7 steps), systematically organizing and completing the data analysis and modeling process. He also incorporated many numerous data exploration insights, model comparisonscomparisions, diagnostic correction, and calibration plots., along with detailed summaries of data and summary tables for the Logistics & COx models. edledited those aforementioned preliminary models with pie charts and boxplots.
+
+References
+Harbeck, N., Penault-Llorca, F., Cortes, J., Gnant, M., Houssami, N., Poortmans, P., Ruddy, K., Tsang, J., & Cardoso, F. (2019). Breast cancer. Nature Reviews Disease Primers, 5, Article 66. https://doi.org/10.1038/s41572-019-0111-2
+
+
+
+
+
+
+
 ### I. Data Manupulation & Exploration:
 
 #### Step_1: Loading necessary packages
-```{r}
+```{r,message=FALSE, warning=FALSE}
 library(readr)
 library(dplyr)
 library(survival)
@@ -49,7 +90,7 @@ library(kableExtra)
 
 
 #### Step_2: Data cleaning & Initial Survival Time Distribution Visualization
-```{r}
+```{r,message=FALSE, warning=FALSE}
 data_clean = read_csv("/Users/boxiangtang/Desktop/Biosta_HW/Biosta_final/Project_2_data.csv") |>
   rename(
     Stage_6th = `6th Stage`) |>
@@ -95,7 +136,7 @@ data_clean |> ggplot(aes(x = survival_months, fill = status)) +
 
 
 #### Step_3: Variable Description Tables
-```{r}
+```{r,message=FALSE, warning=FALSE}
 # Create a data frame for variable descriptions
 variable_descriptions <- data.frame(
   Variable = c(
@@ -134,7 +175,7 @@ kable(variable_descriptions, col.names = c("Variable", "Description"),
 
 
 #### Step_4: Visualization for Categorical Variables
-```{r}
+```{r,message=FALSE, warning=FALSE}
 
 # Ensure variables are converted to factor type
 convert_to_factor <- function(data, vars) {
@@ -187,7 +228,7 @@ plot_pie(data_clean, "status", "Status")
 
 
 #### Step_5: Visualization for Numerical Variables
-```{r}
+```{r,message=FALSE, warning=FALSE}
 # Select numeric variables and remove missing values
 num_vars <- c("age", "tumor_size", "regional_node_examined", "regional_node_positive", "survival_months")
 
@@ -241,7 +282,7 @@ par(mfrow = c(1, 1))
 #### Step_6: Check Multi-collinearity between Different Kinds of Variable
 
 **Checking Multi-Collinearity Among Numerical Variables(Correlation Matrix & Variance Inflation Factor (VIF)) :**
-```{r}
+```{r,message=FALSE, warning=FALSE}
 
 # Select numerical variables
 numeric_vars <- data_clean[, c("age", "tumor_size", "regional_node_examined", "regional_node_positive", "survival_months")]
@@ -281,7 +322,7 @@ pairs(
 
 
 **Checking Multi-Collinearity Among Categorical Variables (Chi-Square Test of Independence):**
-```{r}
+```{r,message=FALSE, warning=FALSE}
 # Select categorical variables
 categorical_vars <- data_clean[, c("race", 
                                    "marital_status", 
@@ -360,7 +401,7 @@ print(significant_results)
 
 
 **Checking Multi-Collinearity Between Numerical and Categorical Variables (ANOVA): **
-```{r}
+```{r,message=FALSE, warning=FALSE}
 perform_anova <- function(data, numeric_vars, categorical_vars) {
   results <- data.frame(Numeric_Var = character(), Categorical_Var = character(), P_Value = numeric())
   for (num_var in numeric_vars) {
@@ -404,7 +445,7 @@ print(anova_results)
 #### Step_7: Variable Transformation Section
 
 **For all numerical variables:**
-```{r}
+```{r,message=FALSE, warning=FALSE}
 
 
 # Visualize current distributions
@@ -435,7 +476,7 @@ boxplot(data_clean$age_scaled, main = "Scaled Age", col = "blue")
 
 
 **Further improve for survival_months (Box-Cox):**
-```{r}
+```{r,message=FALSE, warning=FALSE}
 # Box-Cox transformation
 boxcox_result <- boxcox(lm(survival_months ~ 1, data = data_clean), lambda = seq(-2, 2, 0.1))
 
@@ -463,7 +504,7 @@ boxplot(data_clean$survival_months_boxcox, main = "Box-Cox Transformed Survival 
 
 #### Step_8: Identifying Influencial Outliers
 
-```{r}
+```{r,message=FALSE, warning=FALSE}
 # Ensure your data is clean and transformed (based on previous steps)
 data_clean <- data_clean %>%
   mutate(
@@ -529,7 +570,7 @@ cat("Total influential points detected:", nrow(influential_points), "\n")
 The results indicate most data points have minimal impact, but 331 potential influential points warrant further attention. Cook's Distance, leverage values, and standardized residuals highlight some points that might significantly influence the model. The next steps involve extracting these points, analyzing their distribution and origin, and deciding whether to remove errors or adjust the model to mitigate their impact. Finally, refit the model to ensure robustness.
 
 
-```{r}
+```{r,message=FALSE, warning=FALSE}
 # Step 6: Investigate Influential Points
 # Extract and analyze influential points
 influential_points_data <- data_clean %>%
@@ -599,7 +640,7 @@ cat("Process completed. Key numeric variables visualized, updated model fitted, 
 
 
 #### Step_1: Logistic Regression Model with Interaction Terms and Optimization
-```{r}
+```{r,message=FALSE, warning=FALSE}
 # Ensure data balance
 # Split data based on status
 data_majority <- data_clean_no_outliers %>% filter(status == 0)
@@ -677,7 +718,7 @@ plot(roc_curve_train, main = "ROC Curve on Train Data")
 
 
 #### Step_2: Cox Proportional Hazards Model
-```{r}
+```{r,message=FALSE, warning=FALSE}
 
 # Data preparation
 cox_data <- data_clean_no_outliers
@@ -751,7 +792,7 @@ significant_coefficients
 
 
 #### Step_4: Model Fairness Evaluation
-```{r}
+```{r,message=FALSE, warning=FALSE}
 # Calculate model performance for different racial groups
 # Logistic model - Compute AUC by race
 roc_logistic_white <- roc(
@@ -825,7 +866,7 @@ legend("bottomright", legend = c("White", "Black"), col = c("blue", "red"), lwd 
 
 
 #### Step_5: Model Feature Importance Evaluation
-```{r}
+```{r,message=FALSE, warning=FALSE}
 # Convert sparse matrix to a regular matrix
 lasso_importance <- as.matrix(abs(coef_lasso))
 
@@ -850,7 +891,7 @@ knitr::kable(lasso_importance, caption = "Feature Importance for Logistic Model"
 #### Step_6: Model Calibration and Diagnostics
 
 **Part_1: COX**
-```{r}
+```{r,message=FALSE, warning=FALSE}
 # Step 1: Check numeric variables for zero variance
 print("Checking numeric variables for zero variance:")
 zero_variance_vars <- apply(cox_data, 2, function(x) if (is.numeric(x)) var(x, na.rm = TRUE) == 0)
@@ -916,7 +957,7 @@ if (length(problematic_vars) > 0) {
 
 
 **Part_2: Logistic Models**
-```{r}
+```{r,message=FALSE, warning=FALSE}
 
 # Logistic Model Manual Calibration Curve (Fixed Version)
 
@@ -964,7 +1005,7 @@ ggplot(calibration_data, aes(x = mean_predicted, y = mean_observed)) +
 
 #### Step_7: Report Supplement and Results Summary
 
-```{r}
+```{r,message=FALSE, warning=FALSE}
 # Descriptive Summary Table
 summary_stats <- data_clean_no_outliers %>%
   summarise(
